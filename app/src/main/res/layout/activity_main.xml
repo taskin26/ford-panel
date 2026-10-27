@@ -1,22 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     android:background="#0b1f33">
 
-    <WebView
-        android:id="@+id/web"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
-
-    <!-- Ust serit: durum + WiFi/Bluetooth baglan butonlari (panel uzerinde hep gorunur) -->
+    <!-- Ust bant: panele BINMEZ, kendi yerini kaplar -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:background="#CC0b1f33"
-        android:paddingLeft="10dp"
+        android:background="#0b1f33"
+        android:paddingLeft="8dp"
         android:paddingRight="8dp"
         android:paddingTop="5dp"
         android:paddingBottom="5dp">
@@ -41,7 +37,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="FORD"
-            android:textColor="#d0e4ff"
+            android:textColor="#9fc0e4"
             android:textSize="12sp"
             android:maxLines="1"
             android:ellipsize="end" />
@@ -71,4 +67,10 @@
             android:paddingLeft="12dp"
             android:paddingRight="12dp" />
     </LinearLayout>
-</FrameLayout>
+
+    <WebView
+        android:id="@+id/web"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+</LinearLayout>

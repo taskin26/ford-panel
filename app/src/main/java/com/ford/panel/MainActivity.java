@@ -74,7 +74,7 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
 
         // Panel HEMEN (gomulu) acilir -> her zaman gorunur.
         web.loadUrl(YEREL_URL);
-        durumYaz("Panel yuklendi - baglanti araniyor...");
+        durumYaz("Baglanti araniyor...");
         // Arka planda Pi'ye ulasiliyor mu diye bak; ulasiliyorsa canliya gec.
         piDene(true);
     }
@@ -119,7 +119,7 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
         @JavascriptInterface public String btKomut(String komut) {
             if (komut == null || komut.trim().isEmpty()) return "0";
             if (bt != null && bt.bagliMi()) { bt.gonder(komut.trim()); return "1"; }
-            ana.post(() -> durumYaz("Bluetooth bagli degil - 'Bluetooth ile Baglan'a bas"));
+            ana.post(() -> durumYaz("Bluetooth bagli degil"));
             return "0";
         }
     }
@@ -144,9 +144,9 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
                         piCanli = true;
                         web.loadUrl(PI_BASE + "/");   // CANLI panel - her sey calisir
                     }
-                    durumYaz("WiFi bagli - canli panel");
+                    durumYaz("● WiFi bagli");
                 } else if (!sessiz) {
-                    durumYaz("Pi'ye ulasilamadi - araca yakin misin?");
+                    durumYaz("Baglanti yok");
                 }
             });
         });
