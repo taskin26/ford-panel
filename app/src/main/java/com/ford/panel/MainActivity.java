@@ -44,7 +44,7 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
 
     private WebView web;
     private TextView durum;
-    private Button wifiBtn, btBtn;
+    private Button wifiBtn, btBtn, homeBtn;
     private BtKontrol bt;
     private ConnectivityManager cm;
     private ConnectivityManager.NetworkCallback agGeri;
@@ -65,10 +65,12 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
         durum  = findViewById(R.id.durum);
         wifiBtn= findViewById(R.id.wifiBtn);
         btBtn  = findViewById(R.id.btBtn);
+        homeBtn= findViewById(R.id.homeBtn);
 
         kurWebView();
         wifiBtn.setOnClickListener(v -> wifiBaglan());
         btBtn.setOnClickListener(v -> btBaglan());
+        homeBtn.setOnClickListener(v -> anaEkranaDon());
 
         // Panel HEMEN (gomulu) acilir -> her zaman gorunur.
         web.loadUrl(YEREL_URL);
@@ -222,8 +224,27 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
                         | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
     }
 
+    /** Paneldeki acik ekrani (muzik/medya/nav/ayarlar) kapatip ana ekrana dondurur. */
+    private void anaEkranaDon() {
+        if (web != null) web.evaluateJavascript(
+                "(function(){try{if(window.goHome){goHome();return 'ok';}" +
+                "var o=document.querySelector('.app-overlay.open');" +
+                "if(o){o.classList.remove('open');return 'ok';}}catch(e){}return 'yok';})();", null);
+    }
+
     @Override public void onBackPressed() {
-        if (web != null && web.canGoBack()) web.goBack(); else super.onBackPressed();
+        if (web == null) { super.onBackPressed(); return; }
+        // Panelde bir alt ekran acıksa once onu kapat (uygulamadan cikma).
+        web.evaluateJavascript(
+                "(function(){try{var o=document.querySelector('.app-overlay.open');" +
+                "if(o){if(window.goHome){goHome();}else{o.classList.remove('open');}return 'kapandi';}}" +
+                "catch(e){}return 'ana';})();",
+                deger -> {
+                    if (deger != null && deger.contains("ana")) {
+                        // Zaten ana ekran: uygulamayi kapatmak yerine arka plana al.
+                        moveTaskToBack(true);
+                    }
+                });
     }
 
     @Override protected void onDestroy() {
