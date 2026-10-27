@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.FordPanel" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#0b1f33</item>
+        <item name="android:statusBarColor">#0b1f33</item>
+        <item name="android:navigationBarColor">#0b1f33</item>
+    </style>
+</resources>

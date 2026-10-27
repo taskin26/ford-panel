@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0b1f33">
+
+    <WebView
+        android:id="@+id/web"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <LinearLayout
+        android:id="@+id/baglanKatman"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="32dp"
+        android:background="#0b1f33"
+        android:visibility="gone">
+        <TextView
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="FORD" android:textColor="#4da3ff" android:textSize="48sp"
+            android:textStyle="bold" android:letterSpacing="0.2" android:layout_marginBottom="16dp" />
+        <TextView
+            android:id="@+id/durumYazi"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Panel acilamadi." android:textColor="#d0e4ff"
+            android:textSize="18sp" android:gravity="center" android:layout_marginBottom="28dp" />
+        <Button
+            android:id="@+id/baglanBtn"
+            android:layout_width="match_parent" android:layout_height="60dp"
+            android:text="FORD'A BAGLAN (WiFi)" android:textSize="18sp" android:textStyle="bold"
+            android:textColor="#ffffff" android:backgroundTint="#2e7d32" android:layout_marginBottom="14dp" />
+        <Button
+            android:id="@+id/tekrarBtn"
+            android:layout_width="match_parent" android:layout_height="52dp"
+            android:text="TEKRAR DENE" android:textSize="16sp"
+            android:textColor="#ffffff" android:backgroundTint="#37474f" android:layout_marginBottom="14dp" />
+        <Button
+            android:id="@+id/btAcKatmanBtn"
+            android:layout_width="match_parent" android:layout_height="52dp"
+            android:text="BLUETOOTH HIZLI KONTROL" android:textSize="16sp" android:textStyle="bold"
+            android:textColor="#ffffff" android:backgroundTint="#1565c0" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btFab"
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end" android:layout_margin="18dp"
+        android:text="BT" android:textSize="18sp" android:textStyle="bold"
+        android:textColor="#ffffff" android:backgroundTint="#1565c0"
+        android:minWidth="56dp" android:minHeight="56dp" />
+
+    <LinearLayout
+        android:id="@+id/btKatman"
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:orientation="vertical" android:padding="20dp"
+        android:background="#0b1f33" android:visibility="gone">
+        <TextView
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Bluetooth Kontrol" android:textColor="#4da3ff"
+            android:textSize="24sp" android:textStyle="bold" android:layout_marginBottom="8dp" />
+        <TextView
+            android:id="@+id/btDurum"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="Bagli degil" android:textColor="#d0e4ff"
+            android:textSize="15sp" android:layout_marginBottom="10dp" />
+        <Button
+            android:id="@+id/btBaglanBtn"
+            android:layout_width="match_parent" android:layout_height="52dp"
+            android:text="BLUETOOTH'A BAGLAN" android:textSize="16sp" android:textStyle="bold"
+            android:textColor="#ffffff" android:backgroundTint="#2e7d32" android:layout_marginBottom="10dp" />
+        <ScrollView
+            android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+            <LinearLayout
+                android:id="@+id/btButonlar"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" />
+        </ScrollView>
+        <Button
+            android:id="@+id/btKapatBtn"
+            android:layout_width="match_parent" android:layout_height="48dp"
+            android:text="KAPAT (panele don)" android:textSize="15sp"
+            android:textColor="#ffffff" android:backgroundTint="#37474f" android:layout_marginTop="8dp" />
+    </LinearLayout>
+</FrameLayout>
