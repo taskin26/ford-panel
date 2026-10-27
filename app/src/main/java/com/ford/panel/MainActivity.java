@@ -1,9 +1,7 @@
 package com.ford.panel;
 
 import android.Manifest;
-import android.app.Activity;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -15,77 +13,68 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 import android.view.WindowManager;
-import android.webkit.WebResourceError;
-import android.webkit.WebResourceRequest;
-import android.webkit.WebSettings;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebSettings;
 import android.widget.Button;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-/**
- * FORD Panel + Bluetooth Kontrol - TEK UYGULAMA
- *  - Acilinca Pi'deki TAM paneli (ford_ekran.html) WebView'de gosterir (IP yok).
- *  - Panel acilmazsa WiFi "BAGLAN" perdesi.
- *  - "BT" dugmesi: Bluetooth hizli kontrol (WiFi/internet olmadan).
- */
-public class MainActivity extends Activity implements BtKontrol.Dinleyici {
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-    static final String PANEL_URL = "http://10.42.0.1:8080/";
+/**
+ * FORD Panel - TEK UYGULAMA.
+ *  - Panel (ford_ekran.html) APK'nin ICINE gomulu: uygulama acilinca panel HER ZAMAN gelir.
+ *  - WiFi (FORD) ile Pi'ye ulasilabiliyorsa panel Pi'den CANLI yuklenir (tum ozellikler calisir).
+ *  - WiFi yoksa gomulu panel gosterilir; butona basinca komut BLUETOOTH'tan gider.
+ *  - Ikisi de yoksa panel yine ekranda kalir, "baglanti yok" uyarisi verir.
+ *  - Ust seritte: "WiFi ile Baglan" ve "Bluetooth ile Baglan" + durum isigi.
+ */
+public class MainActivity extends android.app.Activity implements BtKontrol.Dinleyici {
+
+    static final String PI_BASE   = "http://10.42.0.1:8080";
+    static final String YEREL_URL = "file:///android_asset/ford_ekran.html";
     static final String FORD_SSID = "FORD";
     static final String FORD_PASS = "fordconnect";
 
-    static final String[][] BT_KOMUTLAR = {
-            {"Kapıları Aç",     "KAPILARI_AC"},
-            {"Kapıları Kilitle","KAPILARI_KILITLE"},
-            {"Motoru Çalıştır", "MOTORU_CALISTIR"},
-            {"Motoru Durdur",   "MOTORU_DURDUR"},
-            {"Bagajı Aç",       "BAGAJI_AC"},
-            {"Camları Aç",      "CAMLARI_AC"},
-            {"Camları Kapat",   "CAMLARI_KAPAT"},
-            {"Işıkları Aç",     "ISIKLARI_AC"},
-            {"Işıkları Kapat",  "ISIKLARI_KAPAT"},
-            {"Araç Durumu",     "ARAC_DURUMU"},
-    };
-
     private WebView web;
-    private View baglanKatman, btKatman;
-    private TextView durumYazi, btDurum;
+    private TextView durum;
+    private Button wifiBtn, btBtn;
+    private BtKontrol bt;
     private ConnectivityManager cm;
     private ConnectivityManager.NetworkCallback agGeri;
-    private boolean panelYuklendi = false;
-    private BtKontrol bt;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    private volatile boolean piCanli = false;   // panel su an Pi'den mi yuklu
+    private final ExecutorService exec = Executors.newSingleThreadExecutor();
+    private final Handler ana = new Handler(Looper.getMainLooper());
+
+    @Override protected void onCreate(Bundle b) {
+        super.onCreate(b);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_main);
 
         cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         bt = new BtKontrol(this);
 
-        web = findViewById(R.id.web);
-        baglanKatman = findViewById(R.id.baglanKatman);
-        btKatman = findViewById(R.id.btKatman);
-        durumYazi = findViewById(R.id.durumYazi);
-        btDurum = findViewById(R.id.btDurum);
+        web    = findViewById(R.id.web);
+        durum  = findViewById(R.id.durum);
+        wifiBtn= findViewById(R.id.wifiBtn);
+        btBtn  = findViewById(R.id.btBtn);
 
         kurWebView();
+        wifiBtn.setOnClickListener(v -> wifiBaglan());
+        btBtn.setOnClickListener(v -> btBaglan());
 
-        ((Button) findViewById(R.id.baglanBtn)).setOnClickListener(v -> fordaBaglan());
-        ((Button) findViewById(R.id.tekrarBtn)).setOnClickListener(v -> {
-            baglanKatman.setVisibility(View.GONE); web.loadUrl(PANEL_URL);
-        });
-        ((Button) findViewById(R.id.btAcKatmanBtn)).setOnClickListener(v -> btKatmanGoster(true));
-        ((Button) findViewById(R.id.btFab)).setOnClickListener(v -> btKatmanGoster(true));
-        ((Button) findViewById(R.id.btKapatBtn)).setOnClickListener(v -> btKatmanGoster(false));
-        ((Button) findViewById(R.id.btBaglanBtn)).setOnClickListener(v -> btBaglan());
-
-        btButonlariOlustur();
-        web.loadUrl(PANEL_URL);
+        // Panel HEMEN (gomulu) acilir -> her zaman gorunur.
+        web.loadUrl(YEREL_URL);
+        durumYaz("Panel yuklendi - baglanti araniyor...");
+        // Arka planda Pi'ye ulasiliyor mu diye bak; ulasiliyorsa canliya gec.
+        piDene(true);
     }
 
     private void kurWebView() {
@@ -96,27 +85,74 @@ public class MainActivity extends Activity implements BtKontrol.Dinleyici {
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setUseWideViewPort(true);
         s.setLoadWithOverviewMode(true);
-        s.setBuiltInZoomControls(false);
-        s.setSupportZoom(false);
+        s.setAllowFileAccess(true);
+        s.setAllowContentAccess(true);
+        web.addJavascriptInterface(new Kopru(), "FordKopru");
         web.setWebViewClient(new WebViewClient() {
-            @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) { return false; }
             @Override public void onPageFinished(WebView v, String url) {
-                if (url != null && url.startsWith("http")) {
-                    panelYuklendi = true; baglanKatman.setVisibility(View.GONE);
-                }
-            }
-            @Override public void onReceivedError(WebView v, WebResourceRequest req, WebResourceError err) {
-                if (req.isForMainFrame()) {
-                    panelYuklendi = false;
-                    durumYazi.setText("Panel açılamadı.\nFORD ağına bağlı değilsin.");
-                    baglanKatman.setVisibility(View.VISIBLE);
-                }
+                // Gomulu (file://) panelde: komutlari Bluetooth'a yonlendiren koprüyü enjekte et.
+                if (url != null && url.startsWith("file://")) enjekteEt();
             }
         });
     }
 
-    private void fordaBaglan() {
-        durumYazi.setText("FORD ağına bağlanılıyor...");
+    /** Gomulu panelde fetch('/api/komut') -> Bluetooth. Diger /api cagrilari sessizce bos doner. */
+    private void enjekteEt() {
+        String js =
+            "(function(){if(window.__fordShim)return;window.__fordShim=1;var of=window.fetch;" +
+            "window.fetch=function(u,o){try{var url=(typeof u==='string')?u:(u&&u.url)||'';" +
+            "if(url.indexOf('/api/komut')>=0){var body=(o&&o.body)||'{}';var k='';" +
+            "try{k=JSON.parse(body).komut||'';}catch(e){}" +
+            "var ok=FordKopru.btKomut(k)==='1';" +
+            "return Promise.resolve(new Response(JSON.stringify({ok:ok,hata:ok?'':'baglanti yok'})," +
+            "{status:200,headers:{'Content-Type':'application/json'}}));}" +
+            "if(url.indexOf('/api/')>=0){return Promise.resolve(new Response('{}'," +
+            "{status:200,headers:{'Content-Type':'application/json'}}));}}catch(e){}" +
+            "return of.apply(this,arguments);};})();";
+        web.evaluateJavascript(js, null);
+    }
+
+    /** JS'ten cagrilir: paneldeki butonlar bu kopru uzerinden Bluetooth'a komut yollar. */
+    private class Kopru {
+        @JavascriptInterface public String btKomut(String komut) {
+            if (komut == null || komut.trim().isEmpty()) return "0";
+            if (bt != null && bt.bagliMi()) { bt.gonder(komut.trim()); return "1"; }
+            ana.post(() -> durumYaz("Bluetooth bagli degil - 'Bluetooth ile Baglan'a bas"));
+            return "0";
+        }
+    }
+
+    /** Pi'ye HTTP ile ulasilabiliyor mu? Ulasiliyorsa paneli Pi'den canli yukle. */
+    private void piDene(final boolean sessiz) {
+        exec.execute(() -> {
+            boolean ok = false;
+            try {
+                HttpURLConnection c = (HttpURLConnection) new URL(PI_BASE + "/").openConnection();
+                c.setConnectTimeout(2000);
+                c.setReadTimeout(2000);
+                c.setRequestMethod("GET");
+                int kod = c.getResponseCode();
+                c.disconnect();
+                ok = (kod > 0);
+            } catch (Exception ignored) {}
+            final boolean ulasildi = ok;
+            ana.post(() -> {
+                if (ulasildi) {
+                    if (!piCanli) {
+                        piCanli = true;
+                        web.loadUrl(PI_BASE + "/");   // CANLI panel - her sey calisir
+                    }
+                    durumYaz("WiFi bagli - canli panel");
+                } else if (!sessiz) {
+                    durumYaz("Pi'ye ulasilamadi - araca yakin misin?");
+                }
+            });
+        });
+    }
+
+    // ---- WiFi (FORD agi) baglanti ----
+    private void wifiBaglan() {
+        durumYaz("FORD agina baglaniliyor...");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             WifiNetworkSpecifier spec = new WifiNetworkSpecifier.Builder()
                     .setSsid(FORD_SSID).setWpa2Passphrase(FORD_PASS).build();
@@ -128,93 +164,53 @@ public class MainActivity extends Activity implements BtKontrol.Dinleyici {
             agGeri = new ConnectivityManager.NetworkCallback() {
                 @Override public void onAvailable(Network network) {
                     cm.bindProcessToNetwork(network);
-                    new Handler(Looper.getMainLooper()).post(() -> {
-                        Toast.makeText(MainActivity.this, "FORD'a bağlandı", Toast.LENGTH_SHORT).show();
-                        baglanKatman.setVisibility(View.GONE); web.loadUrl(PANEL_URL);
-                    });
+                    ana.post(() -> { Toast.makeText(MainActivity.this, "FORD'a baglandi", Toast.LENGTH_SHORT).show();
+                                     piDene(false); });
                 }
                 @Override public void onUnavailable() {
-                    new Handler(Looper.getMainLooper()).post(() ->
-                            durumYazi.setText("FORD'a bağlanılamadı.\nAraç yakınında mısın? Tekrar dene."));
+                    ana.post(() -> durumYaz("FORD'a baglanilamadi - tekrar dene"));
                 }
             };
             cm.requestNetwork(istek, agGeri);
         } else {
-            durumYazi.setText("WiFi ayarlarından FORD ağına bağlan,\nsonra 'Tekrar Dene'ye bas.");
+            durumYaz("WiFi ayarlarindan FORD agina baglan");
             try { startActivity(new android.content.Intent(
                     android.provider.Settings.ACTION_WIFI_SETTINGS)); } catch (Exception ignored) {}
         }
     }
 
-    private void btKatmanGoster(boolean ac) { btKatman.setVisibility(ac ? View.VISIBLE : View.GONE); }
-
-    private void btButonlariOlustur() {
-        LinearLayout kap = findViewById(R.id.btButonlar);
-        float d = getResources().getDisplayMetrics().density;
-        int pad = (int) (12 * d);
-        for (final String[] kv : BT_KOMUTLAR) {
-            Button b = new Button(this);
-            b.setText(kv[0]); b.setTextColor(Color.WHITE); b.setTextSize(18);
-            b.setAllCaps(false); b.setBackgroundColor(renkSec(kv[1]));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, (int) (60 * d));
-            lp.setMargins(0, pad / 2, 0, pad / 2);
-            b.setLayoutParams(lp);
-            b.setOnClickListener(v -> btGonder(kv[0], kv[1]));
-            kap.addView(b);
-        }
-    }
-
-    private int renkSec(String komut) {
-        if (komut.equals("MOTORU_DURDUR") || komut.equals("KAPILARI_KILITLE"))
-            return Color.parseColor("#c62828");
-        if (komut.equals("MOTORU_CALISTIR") || komut.equals("KAPILARI_AC"))
-            return Color.parseColor("#2e7d32");
-        return Color.parseColor("#37474f");
-    }
-
+    // ---- Bluetooth baglanti ----
     private void btBaglan() {
         if (!btIzinVar()) { btIzinIste(); return; }
-        btDurum.setText("Bağlanıyor..."); bt.baglan();
+        // Komutlarin BT'ye gitmesi icin gomulu panele gec (koprü orada aktif).
+        if (piCanli) { piCanli = false; web.loadUrl(YEREL_URL); }
+        durumYaz("Bluetooth baglaniliyor...");
+        bt.baglan();
     }
 
-    private void btGonder(String etiket, String komut) {
-        if (!btIzinVar()) { btIzinIste(); return; }
-        if (!bt.bagliMi()) { btDurum.setText("Önce 'Bluetooth'a Bağlan'a bas."); return; }
-        bt.gonder(komut);
-        Toast.makeText(this, etiket, Toast.LENGTH_SHORT).show();
-    }
+    @Override public void durum(String mesaj, boolean bagli) { durumYaz((bagli ? "BT: " : "") + mesaj); }
+    @Override public void cevap(String satir) { Toast.makeText(this, satir, Toast.LENGTH_SHORT).show(); }
 
-    @Override public void durum(String mesaj, boolean bagli) {
-        btDurum.setText((bagli ? "● " : "○ ") + mesaj);
-    }
-    @Override public void cevap(String satir) {
-        Toast.makeText(this, satir, Toast.LENGTH_SHORT).show();
-    }
+    private void durumYaz(String m) { if (durum != null) durum.setText(m); }
 
+    // ---- izinler ----
     private static final int IZIN_BT = 42;
     private boolean btIzinVar() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true;
-        return checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT)
-                == PackageManager.PERMISSION_GRANTED;
+        return checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED;
     }
     private void btIzinIste() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            requestPermissions(new String[]{
-                    Manifest.permission.BLUETOOTH_CONNECT,
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+            requestPermissions(new String[]{Manifest.permission.BLUETOOTH_CONNECT,
                     Manifest.permission.BLUETOOTH_SCAN}, IZIN_BT);
-        }
     }
     @Override public void onRequestPermissionsResult(int kod, String[] izinler, int[] sonuc) {
         super.onRequestPermissionsResult(kod, izinler, sonuc);
         if (kod == IZIN_BT && sonuc.length > 0 && sonuc[0] == PackageManager.PERMISSION_GRANTED) btBaglan();
-        else if (kod == IZIN_BT) btDurum.setText("Bluetooth izni verilmedi.");
+        else if (kod == IZIN_BT) durumYaz("Bluetooth izni verilmedi");
     }
 
-    @Override protected void onResume() {
-        super.onResume(); tamEkran();
-        if (!panelYuklendi) web.loadUrl(PANEL_URL);
-    }
+    @Override protected void onResume() { super.onResume(); tamEkran(); }
 
     private void tamEkran() {
         getWindow().getDecorView().setSystemUiVisibility(
@@ -227,7 +223,6 @@ public class MainActivity extends Activity implements BtKontrol.Dinleyici {
     }
 
     @Override public void onBackPressed() {
-        if (btKatman.getVisibility() == View.VISIBLE) { btKatmanGoster(false); return; }
         if (web != null && web.canGoBack()) web.goBack(); else super.onBackPressed();
     }
 
