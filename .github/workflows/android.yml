@@ -12,12 +12,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: ''
-      - name: SDK paketleri
-        run: sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
       - name: Gradle wrapper
         run: gradle wrapper --gradle-version 8.5
       - name: APK derle
