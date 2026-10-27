@@ -1,0 +1,34 @@
+===============================================================
+ FORD PANEL + BLUETOOTH  —  KURULUM
+===============================================================
+Uygulama: açılınca Pi'deki TAM paneli gösterir (IP yok). "BT" ile
+WiFi'siz araç kontrolü (kapı/kilit/motor/bagaj/cam/ışık/durum).
+
+APK derlemek: bkz. NASIL_DERLENIR.txt (GitHub Actions / Studio / komut satırı)
+
+--- Pi tarafı (Bluetooth sunucusu — APK'yı etkilemez) ---
+1. ford_btkomut.py -> /home/ford/ (SCP ile).
+2. Bir kerelik:
+     sudo apt-get install -y libbluetooth-dev bluez
+     pip3 install pybluez2 --break-system-packages
+3. Eşleşmeye aç (bir kerelik):
+     bluetoothctl
+        power on
+        discoverable on
+        pairable on
+        agent on
+        default-agent
+        quit
+4. Çalıştır:  python3 /home/ford/ford_btkomut.py
+   (Açılışta kendi başlasın: dosya sonundaki systemd notu.)
+
+--- Telefon / tablet (bir kerelik) ---
+1. Bluetooth ayarları -> Pi ('ford') ile EŞLEŞTİR.
+2. WiFi -> FORD ağına bağlan (şifre: fordconnect),
+   "otomatik bağlan" + "internet olmasa da bağlı kal" AÇIK.
+3. APK'yı kur, aç.
+
+--- Ayarlar (gerekirse) ---
+- Pi adresi/şifre: MainActivity.java -> PANEL_URL, FORD_SSID, FORD_PASS
+- Pi'nin BT adı farklıysa: BtKontrol.java -> PI_AD
+- BT düğme listesi: MainActivity.java -> BT_KOMUTLAR

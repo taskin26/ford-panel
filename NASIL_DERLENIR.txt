@@ -1,0 +1,44 @@
+===============================================================
+ APK NASIL DERLENIR  —  3 yol (Android Studio ŞART DEĞİL)
+===============================================================
+
+-----------------------------------------------------------
+ YOL 1) GITHUB ACTIONS  —  hiçbir şey kurmadan, bulutta derle
+-----------------------------------------------------------
+ En kolay "Studio yok" yolu. Bilgisayara/iş yerine bir şey kurmazsın;
+ derlemeyi GitHub'ın bulutu yapar, sen bitmiş APK'yı indirirsin.
+
+ 1. github.com -> ücretsiz hesap aç (yoksa).
+ 2. "New repository" -> ad ver (orn. ford-panel) -> Create.
+ 3. Bu "FordPanelApp" klasörünün İÇİNDEKİ her şeyi repoya yükle:
+    - Repoda "uploading an existing file" -> tüm dosya/klasörleri sürükle.
+    - (.github klasörü dahil olmali! Gizli gorunurse de yukle.)
+ 4. Yükleyince "Actions" sekmesi otomatik derlemeye başlar
+    (yesil tik bekleyince ~3-5 dk).
+ 5. Actions -> en üstteki çalışmaya tıkla -> en altta "Artifacts" ->
+    "FORD-app-debug-apk" indir -> içinden app-debug.apk çıkar.
+ 6. O APK'yı telefona/tablete kur.
+
+ Not: .github/workflows/android.yml dosyasi derlemeyi otomatik yapar;
+      sen sadece yukleyip indiriyorsun.
+
+-----------------------------------------------------------
+ YOL 2) ANDROID STUDIO  (evde, en bildik)
+-----------------------------------------------------------
+ 1. Android Studio -> Open -> "FordPanelApp" klasörü.
+ 2. Gradle sync beklesin (gerekirse AGP/SDK kurulumunu kabul et).
+ 3. Build -> Build APK(s) -> app/build/outputs/apk/debug/app-debug.apk
+ 4. Telefona/tablete kur.
+
+-----------------------------------------------------------
+ YOL 3) KOMUT SATIRI  (Studio'suz, SDK ile)
+-----------------------------------------------------------
+ Android "command-line tools" + build-tools + platform-34 + JDK kur,
+ sonra klasörde:
+    gradle wrapper --gradle-version 8.5
+    ./gradlew assembleDebug
+ APK: app/build/outputs/apk/debug/app-debug.apk
+
+===============================================================
+ Kurulum (Pi + telefon) ayrıntıları: KURULUM.txt
+===============================================================
