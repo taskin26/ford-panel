@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>FORD · Müzik Yönetimi</title>
+<style>
+  :root{ --bg:#0b1f33; --kart:#12304d; --kart2:#0f2840; --cizgi:#1d3a5c; --mor:#7b1fa2; --mor2:#9c27b0;
+         --yesil:#2e7d32; --kirmizi:#c62828; --metin:#eaf2fb; --soluk:#9fc0e4; }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{background:var(--bg);color:var(--metin);
+       font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+       display:flex;flex-direction:column;}
+  header{display:flex;align-items:center;gap:10px;padding:12px 14px;
+          background:linear-gradient(90deg,#102b47,#0b1f33);border-bottom:1px solid #1d3a5c;}
+  header .baslik{font-size:17px;font-weight:700;letter-spacing:.3px;}
+  header .alt{font-size:11px;color:var(--soluk);margin-top:2px;}
+  .ikon{font-size:22px;}
+  main{flex:1;overflow:auto;padding:14px;}
+  .kutu{background:var(--kart);border:1px solid #1d3a5c;border-radius:14px;padding:14px;margin-bottom:14px;}
+  .kutu h2{margin:0 0 10px;font-size:14px;color:var(--soluk);font-weight:600;
+           text-transform:uppercase;letter-spacing:.6px;}
+  /* yukleme */
+  .sec{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .btn{border:0;border-radius:11px;padding:13px 16px;font-size:15px;font-weight:600;
+       color:#fff;cursor:pointer;}
+  .btn:active{transform:scale(.98);}
+  .btn.mor{background:linear-gradient(180deg,var(--mor2),var(--mor));}
+  .btn.yesil{background:var(--yesil);}
+  .btn.gri{background:#37474f;}
+  .btn.kirmizi{background:var(--kirmizi);}
+  .btn[disabled]{opacity:.45;}
+  .secad{font-size:13px;color:var(--soluk);flex:1;min-width:120px;}
+  input[type=file]{display:none;}
+  .ilerle{height:8px;border-radius:6px;background:#0a2037;overflow:hidden;margin-top:12px;display:none;}
+  .ilerle > i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7b1fa2,#e040fb);transition:width .15s;}
+  .uyari{font-size:12.5px;color:#ffcc80;background:#3a2a10;border:1px solid #5a4015;
+         padding:9px 11px;border-radius:9px;margin-top:10px;display:none;}
+  /* liste */
+  .ust{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .ust .say{font-size:12px;color:var(--soluk);}
+  ul{list-style:none;margin:0;padding:0;}
+  li{display:flex;align-items:center;gap:10px;padding:11px 10px;border-radius:10px;
+     background:var(--kart2);margin-bottom:8px;}
+  li .not{font-size:21px;}
+  li .ad{flex:1;min-width:0;}
+  li .ad .t{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  li .ad .b{font-size:11px;color:var(--soluk);margin-top:2px;}
+  li .sil{border:0;background:#2a1414;color:#ff8a80;border-radius:9px;
+          padding:9px 13px;font-size:14px;font-weight:600;cursor:pointer;}
+  li .sil:active{background:var(--kirmizi);color:#fff;}
+  .bos{color:var(--soluk);font-size:13px;text-align:center;padding:22px 0;}
+  .durum{font-size:12.5px;color:var(--soluk);text-align:center;padding:6px 0 2px;}
+  .yenile{background:none;border:1px solid #2c4f74;color:var(--soluk);
+          border-radius:9px;padding:7px 12px;font-size:13px;cursor:pointer;}
+</style>
+</head>
+<body>
+<header>
+  <span class="ikon">🎵</span>
+  <div style="flex:1">
+    <div class="baslik">Müzik Yönetimi</div>
+    <div class="alt" id="mod">—</div>
+  </div>
+  <button class="yenile" onclick="listele()">↻ Yenile</button>
+</header>
+
+<main>
+  <div class="kutu" id="yukleKutu">
+    <h2>MP3 Yükle</h2>
+    <div class="sec">
+      <button class="btn mor" onclick="document.getElementById('dosya').click()">＋ Dosya Seç</button>
+      <span class="secad" id="secad">Henüz dosya seçilmedi</span>
+      <button class="btn yesil" id="yukleBtn" onclick="yukle()" disabled>Yükle</button>
+    </div>
+    <input type="file" id="dosya" accept=".mp3,.wav,.m4a,.ogg,.flac,audio/*" multiple
+           onchange="secildi()">
+    <div class="ilerle" id="ilerle"><i id="bar"></i></div>
+    <div class="uyari" id="uyari">
+      Bu modda (Bluetooth / çevrimdışı) MP3 <b>yükleme</b> kapalıdır — yüklemek için
+      panelden <b>WiFi ile Bağlan</b>. Silme ve listeleme çalışır.
+    </div>
+  </div>
+
+  <div class="kutu">
+    <div class="ust">
+      <h2 style="margin:0">Yüklü Parçalar</h2>
+      <span class="say" id="say"></span>
+    </div>
+    <ul id="liste"></ul>
+    <div class="bos" id="bos" style="display:none">Hiç müzik yok.</div>
+    <div class="durum" id="dalt"></div>
+  </div>
+</main>
+
+<script>
+  var BT = (location.protocol === 'file:');   // file:// => gömülü (Bluetooth/çevrimdışı)
+  document.getElementById('mod').textContent =
+      BT ? 'Bluetooth / çevrimdışı mod — listele & sil' : 'WiFi mod — yükle, listele, sil';
+  if (BT){
+    document.getElementById('yukleBtn').disabled = true;
+    document.getElementById('uyari').style.display = 'block';
+  }
+
+  function boyutYaz(b){
+    if(b>=1048576) return (b/1048576).toFixed(1)+' MB';
+    if(b>=1024) return (b/1024).toFixed(0)+' KB';
+    return b+' B';
+  }
+  function kacar(s){return (s||'').replace(/[&<>"]/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+
+  function secildi(){
+    var f=document.getElementById('dosya').files;
+    document.getElementById('secad').textContent =
+        f.length ? (f.length+' dosya seçildi') : 'Henüz dosya seçilmedi';
+    document.getElementById('yukleBtn').disabled = (BT || f.length===0);
+  }
+
+  function yukle(){
+    var inp=document.getElementById('dosya');
+    if(BT || !inp.files.length) return;
+    var fd=new FormData();
+    for(var i=0;i<inp.files.length;i++) fd.append('dosya', inp.files[i]);
+    var bar=document.getElementById('bar'), kap=document.getElementById('ilerle');
+    kap.style.display='block'; bar.style.width='0%';
+    document.getElementById('yukleBtn').disabled=true;
+    var x=new XMLHttpRequest();
+    x.open('POST','/api/muzik/yukle');
+    x.upload.onprogress=function(e){ if(e.lengthComputable)
+        bar.style.width=Math.round(e.loaded/e.total*100)+'%'; };
+    x.onload=function(){
+      var r={}; try{r=JSON.parse(x.responseText);}catch(e){}
+      kap.style.display='none';
+      if(r.ok){ inp.value=''; secildi();
+        document.getElementById('dalt').textContent = (r.adet||0)+' dosya yüklendi.';
+        listele();
+      } else { alert('Yükleme hatası: '+(r.hata||x.status)); }
+      document.getElementById('yukleBtn').disabled=(BT||inp.files.length===0);
+    };
+    x.onerror=function(){ kap.style.display='none';
+      alert('Yükleme başarısız (bağlantı).');
+      document.getElementById('yukleBtn').disabled=(BT||inp.files.length===0); };
+    x.send(fd);
+  }
+
+  function sil(ad){
+    if(!confirm('"'+ad+'" silinsin mi?')) return;
+    fetch('/api/muzik/sil',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ad:ad})})
+      .then(function(r){return r.json();})
+      .then(function(r){ if(r.ok){ listele(); }
+        else alert('Silinemedi: '+(r.hata||'')); })
+      .catch(function(){ alert('Silme başarısız (bağlantı).'); });
+  }
+
+  function listele(){
+    document.getElementById('dalt').textContent='Yükleniyor...';
+    fetch('/api/muzik/liste')
+      .then(function(r){return r.json();})
+      .then(function(r){
+        var ul=document.getElementById('liste'); ul.innerHTML='';
+        var d=(r&&r.dosyalar)||[];
+        document.getElementById('say').textContent = d.length+' parça';
+        document.getElementById('bos').style.display = d.length?'none':'block';
+        d.forEach(function(it){
+          var li=document.createElement('li');
+          li.innerHTML='<span class="not">🎵</span>'+
+            '<div class="ad"><div class="t">'+kacar(it.ad)+'</div>'+
+            '<div class="b">'+boyutYaz(it.boyut||0)+'</div></div>'+
+            '<button class="sil">Sil</button>';
+          li.querySelector('.sil').onclick=function(){ sil(it.ad); };
+          ul.appendChild(li);
+        });
+        document.getElementById('dalt').textContent='';
+      })
+      .catch(function(){
+        document.getElementById('dalt').textContent =
+          BT ? 'Liste alınamadı — Bluetooth bağlı mı?' : 'Liste alınamadı — araca ulaşılamıyor.';
+      });
+  }
+  listele();
+</script>
+</body>
+</html>

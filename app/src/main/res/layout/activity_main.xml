@@ -31,6 +31,20 @@
             android:paddingLeft="8dp"
             android:paddingRight="8dp" />
 
+        <Button
+            android:id="@+id/mp3Btn"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:minWidth="44dp"
+            android:text="🎵"
+            android:textColor="#ffffff"
+            android:textSize="16sp"
+            android:textAllCaps="false"
+            android:backgroundTint="#6a1b9a"
+            android:layout_marginEnd="6dp"
+            android:paddingLeft="8dp"
+            android:paddingRight="8dp" />
+
         <TextView
             android:id="@+id/durum"
             android:layout_width="0dp"

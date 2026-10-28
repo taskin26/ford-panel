@@ -38,32 +38,64 @@ public class BtKontrol {
     private InputStream giris;
     private volatile boolean bagli = false;
 
-    // Durum okuma (GET) icin istek/yanit: "GET /api/durum" yolla, "VERI|<json>" bekle.
+    // Genel istek/yanit koprusu: "REQ|<method>|<b64yol>|<b64govde>" yolla, "RES|<status>|<b64body>" bekle.
     private final Object istekKilit = new Object();
     private volatile String sonYanit = null;
+    // Ayni anda tek BT istegi aksin (SPP tek akis) - id eslestirme gerekmez.
+    private final Object btReqLock = new Object();
 
     public BtKontrol(Dinleyici d) { this.dinleyici = d; }
 
     public boolean bagliMi() { return bagli; }
 
-    /** BT uzerinden bir GET istegi yapar, Pi'nin dondugu JSON'u doner (yoksa null). Bloklar (kisa). */
-    public String istekYap(String satir) {
-        if (!bagli || cikis == null) return null;
-        synchronized (istekKilit) { sonYanit = null; }
-        try {
-            cikis.write((satir + "\n").getBytes("UTF-8"));
-            cikis.flush();
-        } catch (Exception e) {
-            return null;
-        }
-        synchronized (istekKilit) {
-            long bitis = System.currentTimeMillis() + 1200;
-            while (sonYanit == null) {
-                long kalan = bitis - System.currentTimeMillis();
-                if (kalan <= 0) break;
-                try { istekKilit.wait(kalan); } catch (InterruptedException e) { break; }
+    /**
+     * BT uzerinden HERHANGI bir panel API istegini (GET/POST + govde) Pi'ye tasir.
+     * Doner: "statuskodu\u0001yanitgovdesi" (shim ayristirir), ulasilamazsa null.
+     * Istekler sirayla gider (tek akis), her biri kendi yanitini bekler.
+     */
+    public String istek(String method, String path, String body) {
+        synchronized (btReqLock) {
+            if (!bagli || cikis == null) return null;
+            String b64p, b64b;
+            try {
+                b64p = android.util.Base64.encodeToString(
+                        path.getBytes("UTF-8"), android.util.Base64.NO_WRAP);
+                b64b = android.util.Base64.encodeToString(
+                        (body == null ? "" : body).getBytes("UTF-8"), android.util.Base64.NO_WRAP);
+            } catch (Exception e) { return null; }
+
+            synchronized (istekKilit) { sonYanit = null; }
+            try {
+                String req = "REQ|" + method + "|" + b64p + "|" + b64b + "\n";
+                cikis.write(req.getBytes("UTF-8"));
+                cikis.flush();
+            } catch (Exception e) {
+                bagli = false;
+                kapatIc();
+                return null;
             }
-            return sonYanit;
+
+            String yanit;
+            synchronized (istekKilit) {
+                long bitis = System.currentTimeMillis() + 6000;  // yukleme/liste icin genis
+                while (sonYanit == null) {
+                    long kalan = bitis - System.currentTimeMillis();
+                    if (kalan <= 0) break;
+                    try { istekKilit.wait(kalan); } catch (InterruptedException e) { break; }
+                }
+                yanit = sonYanit;
+            }
+            if (yanit == null) return null;
+
+            // yanit = "<status>|<b64body>"
+            int p = yanit.indexOf('|');
+            String st = (p >= 0) ? yanit.substring(0, p) : "200";
+            String b64 = (p >= 0) ? yanit.substring(p + 1) : "";
+            String gov;
+            try {
+                gov = new String(android.util.Base64.decode(b64, android.util.Base64.DEFAULT), "UTF-8");
+            } catch (Exception e) { gov = "{}"; }
+            return st + "\u0001" + gov;
         }
     }
 
@@ -175,10 +207,10 @@ public class BtKontrol {
                     String satir = sb.substring(0, idx).trim();
                     sb.delete(0, idx + 1);
                     if (satir.isEmpty()) continue;
-                    if (satir.startsWith("VERI|")) {
-                        // GET istegine yanit (durum JSON'u)
+                    if (satir.startsWith("RES|")) {
+                        // Genel istege yanit: "RES|<status>|<b64body>"
                         synchronized (istekKilit) {
-                            sonYanit = satir.substring(5);
+                            sonYanit = satir.substring(4);
                             istekKilit.notifyAll();
                         }
                     } else {
