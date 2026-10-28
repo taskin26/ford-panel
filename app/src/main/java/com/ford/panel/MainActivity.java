@@ -37,7 +37,12 @@ import java.util.concurrent.Executors;
  */
 public class MainActivity extends android.app.Activity implements BtKontrol.Dinleyici {
 
-    static final String PI_BASE   = "http://10.42.0.1:8080";
+    // Pi'ye once ford.local (ev wifi / telefon hotspot), sonra 10.42.0.1 (FORD-AP) denenir.
+    static final String[] PI_ADAYLAR = {
+            "http://ford.local:8080",
+            "http://10.42.0.1:8080"
+    };
+    private volatile String piBase = "http://ford.local:8080";
     static final String YEREL_URL = "file:///android_asset/ford_ekran.html";
     static final String FORD_SSID = "FORD";
     static final String FORD_PASS = "fordconnect";
@@ -76,7 +81,10 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
         web.loadUrl(YEREL_URL);
         durumYaz("Baglanti araniyor...");
         // Arka planda Pi'ye ulasiliyor mu diye bak; ulasiliyorsa canliya gec.
+        // Ag gec oturabilir diye birkac kez tekrar dene.
         piDene(true);
+        ana.postDelayed(() -> { if (!piCanli) piDene(true); }, 2500);
+        ana.postDelayed(() -> { if (!piCanli) piDene(true); }, 6000);
     }
 
     private void kurWebView() {
@@ -127,26 +135,29 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
     /** Pi'ye HTTP ile ulasilabiliyor mu? Ulasiliyorsa paneli Pi'den canli yukle. */
     private void piDene(final boolean sessiz) {
         exec.execute(() -> {
-            boolean ok = false;
-            try {
-                HttpURLConnection c = (HttpURLConnection) new URL(PI_BASE + "/").openConnection();
-                c.setConnectTimeout(2000);
-                c.setReadTimeout(2000);
-                c.setRequestMethod("GET");
-                int kod = c.getResponseCode();
-                c.disconnect();
-                ok = (kod > 0);
-            } catch (Exception ignored) {}
-            final boolean ulasildi = ok;
+            String bulunan = null;
+            for (String aday : PI_ADAYLAR) {
+                try {
+                    HttpURLConnection c = (HttpURLConnection) new URL(aday + "/").openConnection();
+                    c.setConnectTimeout(2000);
+                    c.setReadTimeout(2000);
+                    c.setRequestMethod("GET");
+                    int kod = c.getResponseCode();
+                    c.disconnect();
+                    if (kod > 0) { bulunan = aday; break; }
+                } catch (Exception ignored) {}
+            }
+            final String base = bulunan;
             ana.post(() -> {
-                if (ulasildi) {
+                if (base != null) {
+                    piBase = base;
                     if (!piCanli) {
                         piCanli = true;
-                        web.loadUrl(PI_BASE + "/");   // CANLI panel - her sey calisir
+                        web.loadUrl(base + "/");   // CANLI panel - her sey calisir
                     }
-                    durumYaz("● WiFi bagli");
+                    durumYaz("● Bagli");
                 } else if (!sessiz) {
-                    durumYaz("Baglanti yok");
+                    durumYaz("Araca ulasilamadi");
                 }
             });
         });
@@ -212,7 +223,10 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
         else if (kod == IZIN_BT) durumYaz("Bluetooth izni verilmedi");
     }
 
-    @Override protected void onResume() { super.onResume(); tamEkran(); }
+    @Override protected void onResume() {
+        super.onResume(); tamEkran();
+        if (!piCanli) piDene(true);   // ekrana donunce tekrar baglanmayi dene
+    }
 
     private void tamEkran() {
         getWindow().getDecorView().setSystemUiVisibility(
