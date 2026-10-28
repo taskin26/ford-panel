@@ -53,25 +53,36 @@ public class BtKontrol {
             if (ad == null) { bildirDurum("Bu cihazda Bluetooth yok", false); return; }
             if (!ad.isEnabled()) { bildirDurum("Bluetooth kapali - once ac", false); return; }
 
-            BluetoothDevice pi = null;
-            Set<BluetoothDevice> esli = ad.getBondedDevices();
-            for (BluetoothDevice d : esli) {
+            // "ford" iceren TUM esli cihazlar aday; "fordconnect" olani basa al.
+            // (Telefonda Ford Transit Courier = araba radyosu, Ford-Connect vb. de olabilir.)
+            java.util.List<BluetoothDevice> adaylar = new java.util.ArrayList<>();
+            for (BluetoothDevice d : ad.getBondedDevices()) {
                 String n = null;
                 try { n = d.getName(); } catch (SecurityException ignored) {}
-                if (n != null && n.toLowerCase().contains(PI_AD)) { pi = d; break; }
+                if (n == null) continue;
+                String norm = n.toLowerCase().replaceAll("[^a-z0-9]", "");
+                if (norm.contains("fordconnect")) adaylar.add(0, d);        // Pi'yi basa al
+                else if (n.toLowerCase().contains(PI_AD)) adaylar.add(d);
             }
-            if (pi == null) {
-                bildirDurum("Esli 'ford' cihazi yok.\n"
-                        + "Telefon Bluetooth ayarlarindan Pi ile eslestir.", false);
+            if (adaylar.isEmpty()) {
+                bildirDurum("Esli 'FordConnect' cihazi yok.\n"
+                        + "Telefon Bluetooth'tan Pi ile eslestir.", false);
                 return;
             }
 
-            bildirDurum("Baglaniyor...", false);
             ad.cancelDiscovery();
-            soket = baglanDenemeleri(ad, pi);
+            BluetoothSocket s = null;
+            for (BluetoothDevice pi : adaylar) {
+                String isim = null;
+                try { isim = pi.getName(); } catch (Exception ignored) {}
+                bildirDurum("Baglaniyor: " + (isim != null ? isim : "?") + "...", false);
+                s = baglanDenemeleri(ad, pi);
+                if (s != null) break;
+            }
+            soket = s;
             if (soket == null) {
                 bagli = false;
-                bildirDurum("BT baglanamadi - Pi ile eslesmeyi kontrol et", false);
+                bildirDurum("BT baglanamadi - Pi/servis acik mi?", false);
                 return;
             }
             cikis = soket.getOutputStream();
