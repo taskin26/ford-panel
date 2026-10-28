@@ -3,7 +3,7 @@
 """
 ford_web_muzik_ekle.py  —  ford_web.py'ye MÜZİK YÖNETİMİ uçlarını ekler
 =====================================================================
-28 Kasım 2026
+28 Kasım 2026  (v2 — fabrika-fonksiyon düzeltmesi)
 
 NE EKLER (ford_web.py'ye, mevcut hiçbir şeyi bozmadan):
     GET  /muzik              -> yönetim sayfası (muzik.html)
@@ -11,15 +11,20 @@ NE EKLER (ford_web.py'ye, mevcut hiçbir şeyi bozmadan):
     POST /api/muzik/yukle    -> çoklu MP3 yükler (multipart, alan adı "dosya")
     POST /api/muzik/sil      -> JSON {"ad": "sarki.mp3"} tek dosya siler
 
+NEDEN v2:
+    ford_web.py'de Flask uygulaması bir FONKSİYONUN İÇİNDE kuruluyor
+    (app = Flask(...) girintili, en sonda 'return app'). Route'lar bu
+    fonksiyonun içine, 'return app'ten HEMEN ÖNCE, doğru girintiyle
+    eklenmeli. (v1 modül seviyesine ekliyordu -> NameError: app.)
+
 GÜVENLİ:
     * Önce ford_web.py.YEDEK-<zaman> yedeği alır.
-    * Zaten eklenmişse tekrar eklemez (işaret satırına bakar).
-    * Ekledikten sonra sözdizimini derleyerek DOĞRULAR; hata olursa
-      yedeği geri yükler ve hiçbir şey değiştirmez.
+    * Zaten eklenmişse tekrar eklemez.
+    * Ekledikten sonra hem DERLER hem IMPORT eder; biri patlarsa yedeği
+      geri yükler, hiçbir şey değiştirmez.
 
 KULLANIM (Pi'de):
     python3 ford_web_muzik_ekle.py                 # /home/ford/ford_web.py
-    python3 ford_web_muzik_ekle.py /yol/ford_web.py
     sudo systemctl restart ford
 """
 
@@ -28,11 +33,13 @@ import re
 import sys
 import time
 import py_compile
+import importlib.util
 
 ISARET = "FORD MUZIK YONETIM"
 
-BLOK = r'''
-# === FORD MUZIK YONETIM (otomatik eklendi) ===
+# Sütun 0'da yazılı şablon. Fonksiyon içine eklerken her satırın başına
+# fonksiyonun girintisi (ör. 4 boşluk) eklenir.
+BLOK = r'''# === FORD MUZIK YONETIM (otomatik eklendi) ===
 import os as _m_os
 from flask import request as _m_req, jsonify as _m_json, send_file as _m_send
 _M_KLASOR = "/home/ford/MUZIK"
@@ -94,24 +101,37 @@ def _m_sil():
         return _m_json({"ok": False, "hata": "dosya yok"}), 404
     except Exception as _e:
         return _m_json({"ok": False, "hata": str(_e)}), 500
-# === /FORD MUZIK YONETIM ===
-'''
+# === /FORD MUZIK YONETIM ==='''
 
 
-def bul_ekleme_noktasi(satirlar):
-    """(indeks, app_degisken_adi) döner. Blok bu indeksin ÖNÜNE eklenir."""
+def _blok_uret(appvar, girinti):
+    """Şablonu appvar ile doldurur ve her satırı 'girinti' ile öteler."""
+    govde = BLOK.replace("{APP}", appvar)
+    satirlar = govde.split("\n")
+    otelenmis = []
+    for s in satirlar:
+        otelenmis.append((girinti + s) if s.strip() else s)  # boş satırı öteleme
+    return "\n".join(otelenmis)
+
+
+def ekleme_plani(satirlar):
+    """
+    (indeks, appvar, girinti, 'once'/'sonra') döner.
+    - Fabrika fonksiyonu (app = Flask(...) girintili, en sonda 'return app'):
+      'return app' satırının ÖNÜNE, fonksiyon girintisiyle.
+    - Modül seviyesi (app = Flask(...) girintisiz): Flask ifadesinin SONRASINA,
+      sütun 0'da.
+    """
     flask_pat = re.compile(r'^(\s*)([A-Za-z_]\w*)\s*=\s*Flask\s*\(')
-    route_pat = re.compile(r'^\s*@([A-Za-z_]\w*)\.route\b')
-
-    # 1) 'app = Flask(' bul -> ifadenin bittiği satırdan SONRASINI döndür
     for i, l in enumerate(satirlar):
         m = flask_pat.match(l)
-        if m:
-            appvar = m.group(2)
-            # parantez dengesini takip et (çok satırlı Flask(...) olabilir)
-            denge = 0
-            j = i
-            baslo = False
+        if not m:
+            continue
+        girinti, appvar = m.group(1), m.group(2)
+
+        if girinti == "":
+            # modül seviyesi -> Flask ifadesinin bittiği satırdan sonra, sütun 0
+            denge, j, baslo = 0, i, False
             while j < len(satirlar):
                 for ch in satirlar[j]:
                     if ch == '(':
@@ -121,15 +141,16 @@ def bul_ekleme_noktasi(satirlar):
                 if baslo and denge <= 0:
                     break
                 j += 1
-            return j + 1, appvar
+            return j + 1, appvar, "", "sonra"
 
-    # 2) Flask( bulunamazsa ilk @app.route'un ÖNÜNE ekle (app zaten tanımlı)
-    for i, l in enumerate(satirlar):
-        m = route_pat.match(l)
-        if m:
-            return i, m.group(1)
-
-    return None, None
+        # fonksiyon içi -> ayni girintide 'return appvar' bul, ONUN ÖNÜNE
+        ret_pat = re.compile(r'^' + re.escape(girinti) + r'return\s+' + re.escape(appvar) + r'\b')
+        for k in range(i + 1, len(satirlar)):
+            if ret_pat.match(satirlar[k]):
+                return k, appvar, girinti, "once"
+        # return bulunamadıysa fonksiyon sonuna düşmek riskli; vazgeç
+        return None, None, None, None
+    return None, None, None, None
 
 
 def main():
@@ -147,37 +168,66 @@ def main():
         sys.exit(0)
 
     satirlar = kaynak.splitlines(keepends=True)
-    nokta, appvar = bul_ekleme_noktasi(satirlar)
+    nokta, appvar, girinti, konum = ekleme_plani(satirlar)
     if nokta is None:
-        print("HATA: Flask app / @route bulunamadı. ford_web.py beklenenden farklı.")
-        print("Elle ekleme için yardım isteyebilirsin.")
+        print("HATA: Flask app ekleme noktası bulunamadı. ford_web.py beklenenden farklı.")
+        print("Bana dosyayı gönder, elle ekleyeyim.")
         sys.exit(2)
 
-    blok = BLOK.replace("{APP}", appvar)
+    blok = _blok_uret(appvar, girinti)
     if not satirlar[nokta - 1].endswith("\n"):
         satirlar[nokta - 1] += "\n"
-    yeni = "".join(satirlar[:nokta]) + blok + "\n" + "".join(satirlar[nokta:])
+
+    if konum == "sonra":
+        yeni = "".join(satirlar[:nokta]) + blok + "\n" + "".join(satirlar[nokta:])
+    else:  # 'once' -> 'return app' satırının önüne
+        yeni = "".join(satirlar[:nokta]) + blok + "\n" + "".join(satirlar[nokta:])
 
     yedek = yol + ".YEDEK-" + time.strftime("%Y%m%d-%H%M%S")
     with open(yedek, "w", encoding="utf-8") as f:
         f.write(kaynak)
-
     with open(yol, "w", encoding="utf-8") as f:
         f.write(yeni)
 
-    # Doğrula; bozuksa geri al
+    # 1) Derleme
     try:
         py_compile.compile(yol, doraise=True)
     except py_compile.PyCompileError as e:
         with open(yol, "w", encoding="utf-8") as f:
             f.write(kaynak)
-        print("HATA: eklenince sözdizimi bozuldu, GERİ ALINDI. Dosyaya dokunulmadı.")
-        print("Ayrıntı:", str(e)[:300])
-        print("(yedek yine de duruyor:", yedek, ")")
+        print("HATA: sözdizimi bozuldu, GERİ ALINDI. Dosyaya dokunulmadı.")
+        print("Ayrıntı:", str(e)[:300], "| yedek:", yedek)
         sys.exit(3)
 
+    # 2) Gerçek import denemesi (NameError gibi çalışma-anı hatalarını yakalar).
+    #    GÜVENLİK: test sırasında 'ford_*' kardeş modülleri ENGELLENİR ki
+    #    donanıma (nmcli, bluetooth, GPIO...) dokunan modüller YÜKLENMESİN.
+    #    ford_web bu modülleri zaten try/except ile opsiyonel yüklüyor.
+    class _Engel:
+        def find_spec(self, ad, yol2=None, hedef=None):
+            if ad.startswith("ford_") and ad != "_ford_web_test":
+                raise ModuleNotFoundError("test engeli: " + ad, name=ad)
+            return None
+    engel = _Engel()
+    sys.meta_path.insert(0, engel)
+    try:
+        spec = importlib.util.spec_from_file_location("_ford_web_test", yol)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    except Exception as e:
+        with open(yol, "w", encoding="utf-8") as f:
+            f.write(kaynak)
+        print("HATA: import patladı, GERİ ALINDI. Dosyaya dokunulmadı.")
+        print("Ayrıntı:", type(e).__name__, str(e)[:200], "| yedek:", yedek)
+        sys.exit(4)
+    finally:
+        try:
+            sys.meta_path.remove(engel)
+        except ValueError:
+            pass
+
     print("TAMAM ✓  Müzik yönetimi eklendi:", yol)
-    print("  app değişkeni :", appvar)
+    print("  app değişkeni :", appvar, "| konum:", konum, "| girinti:", repr(girinti))
     print("  yedek         :", yedek)
     print("Şimdi:  sudo systemctl restart ford")
 
