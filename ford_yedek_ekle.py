@@ -46,12 +46,15 @@ from flask import Response as _y_Resp
 @{APP}.route("/api/yedek/indir")
 def _y_indir():
     _kok = "/home/ford"
+    # Rebuildable / harici sismanliklari ATLA (arduino 7.7G, venv, onbellek...)
+    _atla_dizin = {"arduino", "ford-env", "__pycache__", "_yedek",
+                   ".cache", ".git", "node_modules", ".local"}
+    _atla_uzanti = (".pyc", ".zip")
     _adlar = []
     for _d, _alt, _dosyalar in _y_os.walk(_kok):
-        if "__pycache__" in _d:
-            continue
+        _alt[:] = [_x for _x in _alt if _x not in _atla_dizin]  # o dizinlere hic girme
         for _f in _dosyalar:
-            if _f.endswith(".pyc"):
+            if _f.endswith(_atla_uzanti):
                 continue
             _adlar.append(_y_os.path.join(_d, _f))
     for _s in ("/etc/systemd/system/ford.service",
@@ -155,8 +158,11 @@ def web_yama():
         return False
     kaynak = open(WEB, encoding="utf-8").read()
     if WEB_ISARET in kaynak:
-        print("  = ford_web.py: zaten ekli, atlandı.")
-        return True
+        # Eski blogu cikar -> yenisini ekle (GUNCELLEME).
+        kaynak = re.sub(
+            r'[ \t]*# === FORD YEDEK INDIR.*?# === /FORD YEDEK INDIR ===\n?',
+            '', kaynak, flags=re.DOTALL)
+        print("  ~ ford_web.py: eski yedek ucu guncelleniyor...")
     satirlar = kaynak.splitlines(keepends=True)
     nokta, appvar, girinti, konum = _web_plan(satirlar)
     if nokta is None:
