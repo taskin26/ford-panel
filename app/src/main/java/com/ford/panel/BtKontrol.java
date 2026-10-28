@@ -38,9 +38,34 @@ public class BtKontrol {
     private InputStream giris;
     private volatile boolean bagli = false;
 
+    // Durum okuma (GET) icin istek/yanit: "GET /api/durum" yolla, "VERI|<json>" bekle.
+    private final Object istekKilit = new Object();
+    private volatile String sonYanit = null;
+
     public BtKontrol(Dinleyici d) { this.dinleyici = d; }
 
     public boolean bagliMi() { return bagli; }
+
+    /** BT uzerinden bir GET istegi yapar, Pi'nin dondugu JSON'u doner (yoksa null). Bloklar (kisa). */
+    public String istekYap(String satir) {
+        if (!bagli || cikis == null) return null;
+        synchronized (istekKilit) { sonYanit = null; }
+        try {
+            cikis.write((satir + "\n").getBytes("UTF-8"));
+            cikis.flush();
+        } catch (Exception e) {
+            return null;
+        }
+        synchronized (istekKilit) {
+            long bitis = System.currentTimeMillis() + 1200;
+            while (sonYanit == null) {
+                long kalan = bitis - System.currentTimeMillis();
+                if (kalan <= 0) break;
+                try { istekKilit.wait(kalan); } catch (InterruptedException e) { break; }
+            }
+            return sonYanit;
+        }
+    }
 
     private void bildirDurum(String m, boolean b) { ana.post(() -> dinleyici.durum(m, b)); }
     private void bildirCevap(String s) { ana.post(() -> dinleyici.cevap(s)); }
@@ -149,7 +174,16 @@ public class BtKontrol {
                 while ((idx = sb.indexOf("\n")) >= 0) {
                     String satir = sb.substring(0, idx).trim();
                     sb.delete(0, idx + 1);
-                    if (!satir.isEmpty()) bildirCevap(satir);
+                    if (satir.isEmpty()) continue;
+                    if (satir.startsWith("VERI|")) {
+                        // GET istegine yanit (durum JSON'u)
+                        synchronized (istekKilit) {
+                            sonYanit = satir.substring(5);
+                            istekKilit.notifyAll();
+                        }
+                    } else {
+                        bildirCevap(satir);
+                    }
                 }
             }
         } catch (Exception ignored) {

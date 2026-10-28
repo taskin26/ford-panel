@@ -156,7 +156,11 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
             "var ok=FordKopru.btKomut(k)==='1';" +
             "return Promise.resolve(new Response(JSON.stringify({ok:ok,hata:ok?'':'baglanti yok'})," +
             "{status:200,headers:{'Content-Type':'application/json'}}));}" +
-            "if(url.indexOf('/api/')>=0){return Promise.resolve(new Response('{}'," +
+            "if(url.indexOf('/api/')>=0){" +
+            "var m=((o&&o.method)||'GET').toUpperCase();" +
+            "if(m==='GET'){var yol=url.substring(url.indexOf('/api/'));var j=FordKopru.btIstek(yol);" +
+            "return Promise.resolve(new Response(j||'{}',{status:200,headers:{'Content-Type':'application/json'}}));}" +
+            "return Promise.resolve(new Response('{}'," +
             "{status:200,headers:{'Content-Type':'application/json'}}));}}catch(e){}" +
             "return of.apply(this,arguments);};})();";
         web.evaluateJavascript(js, null);
@@ -169,6 +173,12 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
             if (bt != null && bt.bagliMi()) { bt.gonder(komut.trim()); return "1"; }
             ana.post(() -> durumYaz("Bluetooth bagli degil"));
             return "0";
+        }
+        // Panel durum/veri cekerken (GET): Pi'den BT ile al, JSON don.
+        @JavascriptInterface public String btIstek(String yol) {
+            if (bt == null || !bt.bagliMi() || yol == null) return "{}";
+            String c = bt.istekYap("GET " + yol);
+            return (c != null && !c.isEmpty()) ? c : "{}";
         }
     }
 
