@@ -166,7 +166,7 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
             "var r=FordKopru.btIstek(m,yol,body);" +
             "var st=200,bd='{}';" +
             "if(r){var p=r.indexOf('\\u0001');if(p>=0){st=parseInt(r.substring(0,p))||200;bd=r.substring(p+1);}else{bd=r;}}" +
-            "else{st=503;bd=JSON.stringify({ok:false,hata:'Bluetooth baglanti yok'});}" +
+            "else{st=200;bd='{}';}" +   /* baglanti yoksa SESSIZCE bos don - 'Bluetooth yok' mesajini her yere sizdirma */
             "return Promise.resolve(new Response(bd,{status:st,headers:{'Content-Type':'application/json'}}));" +
             "}}catch(e){}" +
             "return of.apply(this,arguments);};})();";
