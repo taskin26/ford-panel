@@ -68,8 +68,12 @@ public class BtKontrol {
 
             bildirDurum("Baglaniyor...", false);
             ad.cancelDiscovery();
-            soket = pi.createRfcommSocketToServiceRecord(SPP);
-            soket.connect();
+            soket = baglanDenemeleri(ad, pi);
+            if (soket == null) {
+                bagli = false;
+                bildirDurum("BT baglanamadi - Pi ile eslesmeyi kontrol et", false);
+                return;
+            }
             cikis = soket.getOutputStream();
             giris = soket.getInputStream();
             bagli = true;
@@ -81,6 +85,45 @@ public class BtKontrol {
             bagli = false;
             bildirDurum("BT baglanamadi: " + kisaHata(e), false);
             kapatIc();
+        }
+    }
+
+    private interface SoketUret { BluetoothSocket uret() throws Exception; }
+
+    /** Birkac yontemle baglanmayi dener; ilk basarili soketi doner, olmazsa null. */
+    private BluetoothSocket baglanDenemeleri(BluetoothAdapter ad, final BluetoothDevice pi) {
+        // 1) Guvenli, SDP ile
+        BluetoothSocket s = dene(() -> pi.createRfcommSocketToServiceRecord(SPP), ad);
+        if (s != null) return s;
+        // 2) Servis listesini tazele, sonra guvensiz SDP ile (onbellek sorununu asar)
+        try { pi.fetchUuidsWithSdp(); } catch (Exception ignored) {}
+        try { Thread.sleep(1600); } catch (InterruptedException ignored) {}
+        s = dene(() -> pi.createInsecureRfcommSocketToServiceRecord(SPP), ad);
+        if (s != null) return s;
+        // 3) Sabit kanala dogrudan (SDP olmadan) - yansima
+        for (int kanal : new int[]{1, 22, 3}) {
+            final int k = kanal;
+            s = dene(() -> (BluetoothSocket) pi.getClass()
+                    .getMethod("createInsecureRfcommSocket", int.class).invoke(pi, k), ad);
+            if (s != null) return s;
+            s = dene(() -> (BluetoothSocket) pi.getClass()
+                    .getMethod("createRfcommSocket", int.class).invoke(pi, k), ad);
+            if (s != null) return s;
+        }
+        return null;
+    }
+
+    private BluetoothSocket dene(SoketUret uretici, BluetoothAdapter ad) {
+        BluetoothSocket s = null;
+        try {
+            s = uretici.uret();
+            if (s == null) return null;
+            ad.cancelDiscovery();
+            s.connect();
+            return s;
+        } catch (Exception e) {
+            if (s != null) { try { s.close(); } catch (Exception ignored) {} }
+            return null;
         }
     }
 
