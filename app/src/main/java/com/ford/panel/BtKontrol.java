@@ -213,9 +213,9 @@ public class BtKontrol {
                             sonYanit = satir.substring(4);
                             istekKilit.notifyAll();
                         }
-                    } else {
-                        bildirCevap(satir);
                     }
+                    // RES| disi satirlar (selamlama "FORD BT HAZIR", eski Pi'nin
+                    // "RET|...izinsiz" gurultusu vb.) SESSIZCE yok sayilir -> toast spam olmaz.
                 }
             }
         } catch (Exception ignored) {

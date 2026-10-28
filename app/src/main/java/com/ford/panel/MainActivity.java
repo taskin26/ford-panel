@@ -52,17 +52,14 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
     static final String FORD_SSID = "FORD";
     static final String FORD_PASS = "fordconnect";
 
-    static final String MUZIK_YEREL = "file:///android_asset/muzik.html";
-
     private WebView web;
     private TextView durum;
-    private Button wifiBtn, btBtn, homeBtn, mp3Btn;
+    private Button wifiBtn, btBtn, homeBtn;
     private BtKontrol bt;
     private ConnectivityManager cm;
     private ConnectivityManager.NetworkCallback agGeri;
 
     private volatile boolean piCanli = false;   // panel su an Pi'den mi yuklu
-    private volatile boolean muzikModu = false;  // muzik yonetim sayfasi acik mi
     private final ExecutorService exec = Executors.newSingleThreadExecutor();
     private final Handler ana = new Handler(Looper.getMainLooper());
 
@@ -79,13 +76,11 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
         wifiBtn= findViewById(R.id.wifiBtn);
         btBtn  = findViewById(R.id.btBtn);
         homeBtn= findViewById(R.id.homeBtn);
-        mp3Btn = findViewById(R.id.mp3Btn);
 
         kurWebView();
         wifiBtn.setOnClickListener(v -> wifiBaglan());
         btBtn.setOnClickListener(v -> btBaglan());
         homeBtn.setOnClickListener(v -> anaEkranaDon());
-        mp3Btn.setOnClickListener(v -> muzikYonet());
 
         // Panel HEMEN (gomulu) acilir -> her zaman gorunur.
         web.loadUrl(YEREL_URL);
@@ -110,8 +105,11 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
         web.addJavascriptInterface(new Kopru(), "FordKopru");
         web.setWebViewClient(new WebViewClient() {
             @Override public void onPageFinished(WebView v, String url) {
-                // Gomulu (file://) panelde: komutlari Bluetooth'a yonlendiren koprüyü enjekte et.
+                // Gomulu (file://) panelde: TUM /api cagrilarini Bluetooth'a yonlendiren shim.
                 if (url != null && url.startsWith("file://")) enjekteEt();
+                // MP3 yukle/listele/sil araci: paneldeki MUZIK sekmesine enjekte et.
+                // Hem WiFi (canli panel) hem BT (gomulu panel) icin -> her sayfada.
+                enjekteMuzik();
             }
         });
         // Panel confirm()/alert()/prompt() kullaniyor ( or. "emin misiniz?" onay kutusu).
@@ -173,6 +171,23 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
             "}}catch(e){}" +
             "return of.apply(this,arguments);};})();";
         web.evaluateJavascript(js, null);
+    }
+
+    /** MP3 yukle/listele/sil aracini (assets/mp3_arac.js) panele enjekte eder. */
+    private String mp3AracJs = null;
+    private void enjekteMuzik() {
+        if (mp3AracJs == null) mp3AracJs = assetOku("mp3_arac.js");
+        if (mp3AracJs != null && !mp3AracJs.isEmpty()) web.evaluateJavascript(mp3AracJs, null);
+    }
+
+    /** assets/ altindaki bir metin dosyasini okur (yoksa null). */
+    private String assetOku(String ad) {
+        try (java.io.InputStream is = getAssets().open(ad);
+             java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream()) {
+            byte[] tmp = new byte[8192]; int n;
+            while ((n = is.read(tmp)) > 0) bo.write(tmp, 0, n);
+            return new String(bo.toByteArray(), "UTF-8");
+        } catch (Exception e) { return null; }
     }
 
     /** JS'ten cagrilir: paneldeki HER /api istegi bu kopru uzerinden Bluetooth'a gider. */
@@ -369,28 +384,8 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
                         | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
     }
 
-    /** 🎵 MP3 yonetim sayfasini acar: WiFi varsa Pi'nin sayfasi, yoksa gomulu (BT: liste/sil). */
-    private void muzikYonet() {
-        muzikModu = true;
-        if (piCanli && piBase != null) {
-            web.loadUrl(piBase + "/muzik");          // CANLI: yukle + liste + sil
-        } else {
-            web.loadUrl(MUZIK_YEREL);                // gomulu: BT ile liste + sil
-        }
-        durumYaz("🎵 Muzik yonetimi");
-    }
-
-    /** Muzik sayfasindan panele geri doner. */
-    private void paneleDon() {
-        muzikModu = false;
-        if (piCanli && piBase != null) web.loadUrl(piBase + "/");
-        else web.loadUrl(YEREL_URL);
-        durumYaz(piCanli ? "● Bagli" : (bt != null && bt.bagliMi() ? "BT: Bluetooth bagli" : "FORD"));
-    }
-
     /** Paneldeki acik ekrani (muzik/medya/nav/ayarlar) kapatip ana ekrana dondurur. */
     private void anaEkranaDon() {
-        if (muzikModu) { paneleDon(); return; }
         if (web != null) web.evaluateJavascript(
                 "(function(){try{if(window.goHome){goHome();return 'ok';}" +
                 "var o=document.querySelector('.app-overlay.open');" +
@@ -399,7 +394,6 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
 
     @Override public void onBackPressed() {
         if (web == null) { super.onBackPressed(); return; }
-        if (muzikModu) { paneleDon(); return; }   // muzik sayfasindan panele don
         // Panelde bir alt ekran acıksa once onu kapat (uygulamadan cikma).
         web.evaluateJavascript(
                 "(function(){try{var o=document.querySelector('.app-overlay.open');" +
