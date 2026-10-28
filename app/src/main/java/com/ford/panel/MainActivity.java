@@ -133,34 +133,109 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
     }
 
     /** Pi'ye HTTP ile ulasilabiliyor mu? Ulasiliyorsa paneli Pi'den canli yukle. */
+    private volatile boolean taraniyor = false;
+
     private void piDene(final boolean sessiz) {
-        exec.execute(() -> {
-            String bulunan = null;
-            for (String aday : PI_ADAYLAR) {
-                try {
-                    HttpURLConnection c = (HttpURLConnection) new URL(aday + "/").openConnection();
-                    c.setConnectTimeout(2000);
-                    c.setReadTimeout(2000);
-                    c.setRequestMethod("GET");
-                    int kod = c.getResponseCode();
-                    c.disconnect();
-                    if (kod > 0) { bulunan = aday; break; }
-                } catch (Exception ignored) {}
-            }
-            final String base = bulunan;
+        if (taraniyor) return;
+        taraniyor = true;
+        new Thread(() -> {
+            // 1) Hizli adaylar: ford.local (ev wifi) ve 10.42.0.1 (FORD-AP)
+            String base = ilkCevapVeren();
+            // 2) Bulamazsa: bulundugun agi tara, paneli yaniti vereni bul
+            //    (telefon hotspot gibi degisken IP'lerde de calisir)
+            if (base == null) base = agiTara();
+            final String b = base;
             ana.post(() -> {
-                if (base != null) {
-                    piBase = base;
+                taraniyor = false;
+                if (b != null) {
+                    piBase = b;
                     if (!piCanli) {
                         piCanli = true;
-                        web.loadUrl(base + "/");   // CANLI panel - her sey calisir
+                        web.loadUrl(b + "/");   // CANLI panel - her sey calisir
                     }
                     durumYaz("● Bagli");
                 } else if (!sessiz) {
                     durumYaz("Araca ulasilamadi");
                 }
             });
-        });
+        }, "pi-tara").start();
+    }
+
+    /** Verilen adres panelin /api/durum'unu dondurebiliyor mu? */
+    private boolean ulasiliyor(String base, int zaman) {
+        HttpURLConnection c = null;
+        try {
+            c = (HttpURLConnection) new URL(base + "/api/durum").openConnection();
+            c.setConnectTimeout(zaman);
+            c.setReadTimeout(zaman);
+            c.setRequestMethod("GET");
+            int kod = c.getResponseCode();
+            return kod >= 200 && kod < 500;
+        } catch (Exception e) {
+            return false;
+        } finally {
+            if (c != null) c.disconnect();
+        }
+    }
+
+    private String ilkCevapVeren() {
+        for (String aday : PI_ADAYLAR) {
+            if (ulasiliyor(aday, 1500)) return aday;
+        }
+        return null;
+    }
+
+    /** Telefonun bagli oldugu her /24 agini tarar, paneli yaniti vereni bulur. */
+    private String agiTara() {
+        for (String onek : yerelOnekler()) {
+            String bulunan = onekTara(onek);
+            if (bulunan != null) return bulunan;
+        }
+        return null;
+    }
+
+    private java.util.List<String> yerelOnekler() {
+        java.util.List<String> l = new java.util.ArrayList<>();
+        try {
+            for (java.net.NetworkInterface ni :
+                    java.util.Collections.list(java.net.NetworkInterface.getNetworkInterfaces())) {
+                if (!ni.isUp() || ni.isLoopback()) continue;
+                for (java.net.InterfaceAddress ia : ni.getInterfaceAddresses()) {
+                    java.net.InetAddress a = ia.getAddress();
+                    if (a instanceof java.net.Inet4Address) {
+                        String ip = a.getHostAddress();
+                        int p = ip.lastIndexOf('.');
+                        if (p > 0) {
+                            String onek = ip.substring(0, p);
+                            if (!l.contains(onek)) l.add(onek);
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        return l;
+    }
+
+    private String onekTara(final String onek) {
+        final java.util.concurrent.atomic.AtomicReference<String> sonuc =
+                new java.util.concurrent.atomic.AtomicReference<>(null);
+        java.util.concurrent.ExecutorService havuz =
+                java.util.concurrent.Executors.newFixedThreadPool(40);
+        final java.util.concurrent.CountDownLatch latch =
+                new java.util.concurrent.CountDownLatch(254);
+        for (int i = 1; i <= 254; i++) {
+            final String ip = onek + "." + i;
+            havuz.execute(() -> {
+                if (sonuc.get() == null) {
+                    String base = "http://" + ip + ":8080";
+                    if (ulasiliyor(base, 350)) sonuc.compareAndSet(null, base);
+                }
+                latch.countDown();
+            });
+        }
+        try { latch.await(8, java.util.concurrent.TimeUnit.SECONDS); } catch (Exception ignored) {}
+        havuz.shutdownNow();
+        return sonuc.get();
     }
 
     // ---- WiFi (FORD agi) baglanti ----
