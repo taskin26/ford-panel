@@ -1,6 +1,7 @@
 package com.ford.panel;
 
 import android.Manifest;
+import android.app.AlertDialog;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.Network;
@@ -14,10 +15,14 @@ import android.os.Looper;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
+import android.webkit.JsPromptResult;
+import android.webkit.JsResult;
+import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebSettings;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -102,6 +107,41 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
             @Override public void onPageFinished(WebView v, String url) {
                 // Gomulu (file://) panelde: komutlari Bluetooth'a yonlendiren koprüyü enjekte et.
                 if (url != null && url.startsWith("file://")) enjekteEt();
+            }
+        });
+        // Panel confirm()/alert()/prompt() kullaniyor ( or. "emin misiniz?" onay kutusu).
+        // WebView bunlari kendiliginden gostermez -> komut sessizce iptal olur.
+        // Native dialoglarla isleyelim ki onay isteyen komutlar (motor, sistem...) calissin.
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override public boolean onJsConfirm(WebView v, String url, String mesaj, final JsResult sonuc) {
+                new AlertDialog.Builder(MainActivity.this)
+                        .setMessage(mesaj)
+                        .setPositiveButton("Evet", (d, w) -> sonuc.confirm())
+                        .setNegativeButton("Vazgeç", (d, w) -> sonuc.cancel())
+                        .setOnCancelListener(d -> sonuc.cancel())
+                        .show();
+                return true;
+            }
+            @Override public boolean onJsAlert(WebView v, String url, String mesaj, final JsResult sonuc) {
+                new AlertDialog.Builder(MainActivity.this)
+                        .setMessage(mesaj)
+                        .setPositiveButton("Tamam", (d, w) -> sonuc.confirm())
+                        .setOnCancelListener(d -> sonuc.confirm())
+                        .show();
+                return true;
+            }
+            @Override public boolean onJsPrompt(WebView v, String url, String mesaj,
+                                                String varsayilan, final JsPromptResult sonuc) {
+                final EditText giris = new EditText(MainActivity.this);
+                if (varsayilan != null) giris.setText(varsayilan);
+                new AlertDialog.Builder(MainActivity.this)
+                        .setMessage(mesaj)
+                        .setView(giris)
+                        .setPositiveButton("Tamam", (d, w) -> sonuc.confirm(giris.getText().toString()))
+                        .setNegativeButton("Vazgeç", (d, w) -> sonuc.cancel())
+                        .setOnCancelListener(d -> sonuc.cancel())
+                        .show();
+                return true;
             }
         });
     }
