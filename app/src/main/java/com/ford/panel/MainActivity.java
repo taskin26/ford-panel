@@ -155,9 +155,12 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
                 if (dosyaSecGeri != null) { dosyaSecGeri.onReceiveValue(null); }
                 dosyaSecGeri = geriCagri;
                 try {
-                    Intent niyet = parametreler.createIntent();  // input'un accept/multiple'ini korur
+                    Intent niyet = new Intent(Intent.ACTION_GET_CONTENT);
                     niyet.addCategory(Intent.CATEGORY_OPENABLE);
-                    startActivityForResult(niyet, DOSYA_SEC_KODU);
+                    niyet.setType("audio/*");
+                    niyet.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);  // COKLU secim
+                    startActivityForResult(
+                            Intent.createChooser(niyet, "MP3 dosyalarini sec"), DOSYA_SEC_KODU);
                 } catch (Exception e) {
                     dosyaSecGeri = null;
                     durumYaz("Dosya secici acilamadi");
@@ -176,7 +179,17 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
         super.onActivityResult(kod, sonucKodu, veri);
         if (kod == DOSYA_SEC_KODU) {
             if (dosyaSecGeri == null) return;
-            Uri[] sonuc = WebChromeClient.FileChooserParams.parseResult(sonucKodu, veri);
+            Uri[] sonuc = null;
+            if (sonucKodu == RESULT_OK && veri != null) {
+                if (veri.getClipData() != null) {           // COKLU secim
+                    int n = veri.getClipData().getItemCount();
+                    sonuc = new Uri[n];
+                    for (int i = 0; i < n; i++)
+                        sonuc[i] = veri.getClipData().getItemAt(i).getUri();
+                } else if (veri.getData() != null) {         // tek dosya
+                    sonuc = new Uri[]{ veri.getData() };
+                }
+            }
             dosyaSecGeri.onReceiveValue(sonuc);   // null ise iptal edilmis sayilir
             dosyaSecGeri = null;
         }
