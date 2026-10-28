@@ -1137,6 +1137,11 @@ input[type=range].sldr::-webkit-slider-thumb{-webkit-appearance:none;width:17px;
     <div class="overlay-close" onclick="closeOverlay('settings')">✕</div>
   </div>
   <div class="settings-app-inner">
+    <div id="ayar-kilit"><div class="ayk-kutu"><div style="font-size:44px">🔒</div>
+      <div class="ayk-b">Ayarlar Kilitli</div>
+      <div class="ayk-a">Bu bölüm yönetici şifresi ile açılır.</div>
+      <input id="ayar-sifre" type="password" class="s-inp" placeholder="Yönetici şifresi">
+      <button class="s-btn s-btn-p" onclick="ayarGiris()">Giriş</button></div></div>
     <nav class="set-nav">
       <div class="sn-item sn-cik" onclick="goHome()"><span class="sn-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M3.4 10.6 12 3.6l8.6 7" stroke-linejoin="round"/><path d="M5.4 9.6v9.4a1 1 0 0 0 1 1h3.2v-5.2h4.8v5.2h3.2a1 1 0 0 0 1-1V9.6" stroke-linejoin="round"/></svg></span><span class="sn-label">Ana Ekran</span></div>
       <div class="sn-sep"></div>
@@ -1152,6 +1157,11 @@ input[type=range].sldr::-webkit-slider-thumb{-webkit-appearance:none;width:17px;
     </nav>
     <div class="set-content">
       <div class="s-panel active" id="sp-kullanici">
+        <div id="kul-kilit"><div class="kul-kutu"><div style="font-size:42px">🔒</div>
+          <div class="kul-b">Yönetici Girişi</div>
+          <div class="kul-a">Bu bölüm şifre ile korunuyor.</div>
+          <input id="kul-sifre" type="password" class="s-inp" placeholder="Yönetici şifresi">
+          <button class="s-btn s-btn-p" onclick="kulGiris()">Giriş</button></div></div>
         <div class="s-title">👤 Kullanıcılar</div>
         <div class="user-grid" id="userGrid"></div>
         <div class="s-title">Aktif Kullanıcı</div>
@@ -1234,8 +1244,11 @@ input[type=range].sldr::-webkit-slider-thumb{-webkit-appearance:none;width:17px;
           </div>
         </div>
         <div class="sub-sec" id="st-guvenlik">
+          <div class="s-title">👤 Kullanıcı Yönetimi</div>
+          <div class="gc-aciklama">Yeni telefon <b>misafir</b> olur (kapı/cam/marş veremez). Buradan rol verip silebilirsin. Şifreyi sadece sen bilmelisin.</div>
+          <div id="yn-kutu" class="s-group"></div>
           <div class="s-group">
-            <div class="s-row"><div class="sr-l"><span class="sr-ic">🔐</span><div><div class="sr-lbl">Yakınlık Kilidi</div><div class="sr-desc">Kapalıyken herkes komut verebilir</div></div></div><div class="toggle" data-key="t_yakinlik_zorunlu" onclick="toggleBas(this)"><div class="t-track"></div><div class="t-thumb"></div></div></div>
+            <div class="s-row"><div class="sr-l"><span class="sr-ic">🔐</span><div><div class="sr-lbl">Yakınlık Kilidi</div><div class="sr-desc">Kapalıyken herkes komut verebilir</div></div></div><div class="toggle" data-key="t_yakinlik_zorunlu" onclick="yakinlikKilidiBas(this)"><div class="t-track"></div><div class="t-thumb"></div></div></div>
             <div class="s-row"><div class="sr-l"><span class="sr-ic">⚠️</span><div><div class="sr-lbl">Yanlış Kullanıcı Uyarısı</div></div></div><div class="toggle on" data-key="t_yanlis_kullanici_uyarisi" onclick="toggleBas(this)"><div class="t-track"></div><div class="t-thumb"></div></div></div>
             <div class="s-row"><div class="sr-l"><span class="sr-ic">🆔</span><div><div class="sr-lbl">Bilinmeyen RFID</div></div></div><select class="s-sel" data-key="x_bilinmeyen_rfid" onchange="selDegis(this)"><option value="yoksay">Yoksay</option><option value="uyar" selected>Uyar</option><option value="kilitle">Kilitle</option></select></div>
           </div>
@@ -1595,6 +1608,11 @@ input[type=range].sldr::-webkit-slider-thumb{-webkit-appearance:none;width:17px;
       <div>
         <label class="alan-etiket">Yetkiler</label>
         <div class="yetki-sira" id="pfYetki"></div>
+      </div>
+      <div><!-- FORD PROFIL TELEFON -->
+        <label class="alan-etiket">Tanımlı Telefon</label>
+        <select class="metin-giris" id="pfTelefon"><option value="">— bu profile telefon bağla —</option></select>
+        <div class="rfid-kod" id="pfTelNot" style="margin-top:6px">Kaydedince seçilen telefona bu profilin adı ve izinleri yazılır.</div>
       </div>
     </div>
     <div class="modal-alt">
@@ -2569,6 +2587,172 @@ function piAyarYolla(k, d, hemen){
   _ayarZaman[k] = setTimeout(gonder, 300);
 }
 
+/* FORD GUVENLIK JS */
+var _ynSifre=null;
+function _ynK(s){return (s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function _ynPost(u,o){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(o||{})}).then(function(r){return r.json();});}
+function ynYenile(){
+  fetch('/api/yonetici/durum').then(function(r){return r.json();}).then(function(d){
+    var k=document.getElementById('yn-kutu'); if(!k)return;
+    if(!d.sifre_var){
+      k.innerHTML='<div class="s-row" style="flex-wrap:wrap;gap:8px"><input id="yn-s1" type="password" class="s-inp" placeholder="Yönetici şifresi (en az 4)"><input id="yn-s2" type="password" class="s-inp" placeholder="Şifre tekrar"><button class="s-btn s-btn-p" onclick="ynKur()">Şifre Belirle</button></div>';
+    } else if(!_ynSifre){
+      k.innerHTML='<div class="s-row" style="flex-wrap:wrap;gap:8px"><input id="yn-g" type="password" class="s-inp" placeholder="Yönetici şifresi"><button class="s-btn s-btn-p" onclick="ynGiris()">Giriş</button></div>';
+    } else { ynListele(); }
+  }).catch(function(){});
+}
+function ynKur(){
+  var a=document.getElementById('yn-s1').value,b=document.getElementById('yn-s2').value;
+  if(a!==b){alert('Şifreler aynı değil');return;}
+  _ynPost('/api/yonetici/sifre_kur',{sifre:a}).then(function(d){ if(d.ok){_ynSifre=a;ynYenile();} else alert(d.hata||'olmadı'); });
+}
+function ynGiris(){
+  var s=document.getElementById('yn-g').value;
+  _ynPost('/api/yonetici/giris',{sifre:s}).then(function(d){ if(d.ok){_ynSifre=s;ynListele();} else alert('Şifre yanlış'); });
+}
+function ynListele(){
+  if(!window._ynCss){window._ynCss=1;var _st=document.createElement('style');_st.textContent='.yn-tel{border-bottom:1px solid rgba(255,255,255,.08);padding:8px 0 12px;margin-bottom:8px}.yn-izin{display:flex;flex-wrap:wrap;gap:6px;padding:8px 2px 2px}.yn-cip{font-size:12.5px;padding:8px 13px;border-radius:999px;border:1px solid #2c4f74;color:#9fc0e4;cursor:pointer;user-select:none}.yn-cip.on{background:#2e7d32;border-color:#43a047;color:#fff}';document.head.appendChild(_st);}
+  _ynPost('/api/yonetici/telefonlar2',{sifre:_ynSifre}).then(function(d){
+    if(!d.ok){_ynSifre=null;ynYenile();return;}
+    var IZ=[['kapi','Kapı'],['cam','Cam'],['motor','Motor'],['bagaj','Bagaj'],['isik','Işık'],['muzik','Müzik']];
+    var kutu=document.getElementById('yn-kutu'); kutu.innerHTML='';
+    (d.telefonlar||[]).forEach(function(t){
+      var tel=document.createElement('div'); tel.className='yn-tel';
+      var row=document.createElement('div'); row.className='s-row';
+      row.innerHTML='<div class="sr-l"><div><div class="sr-lbl">'+_ynK(t.ad)+((t.mac===d.benim_mac)?' 📱':'')+'</div><div class="sr-desc">'+_ynK(t.mac)+'</div></div></div>';
+      var bAd=document.createElement('button'); bAd.className='s-btn'; bAd.textContent='✏️ İsim'; bAd.onclick=function(){ynAd(t.mac,t.ad);};
+      var bSil=document.createElement('button'); bSil.className='s-btn s-btn-d'; bSil.textContent='Sil'; bSil.onclick=function(){ynSil(t.mac);};
+      row.appendChild(bAd); row.appendChild(bSil); tel.appendChild(row);
+      var iz=document.createElement('div'); iz.className='yn-izin';
+      IZ.forEach(function(p){
+        var cip=document.createElement('span'); cip.className='yn-cip'+((t.yetki&&t.yetki[p[0]])?' on':''); cip.textContent=p[1];
+        cip.onclick=function(){ynYetki(t.mac,p[0],cip);};
+        iz.appendChild(cip);
+      });
+      tel.appendChild(iz); kutu.appendChild(tel);
+    });
+    if(!(d.telefonlar||[]).length){var e=document.createElement('div');e.className='gc-aciklama';e.textContent='Henüz telefon yok. Bir telefon komut verince burada belirir.';kutu.appendChild(e);}
+    var sd=document.createElement('div'); sd.innerHTML='<div class="s-title" style="margin-top:14px">Şifre Değiştir</div><div class="s-row" style="flex-wrap:wrap;gap:8px"><input id="yn-e" type="password" class="s-inp" placeholder="Eski şifre"><input id="yn-n1" type="password" class="s-inp" placeholder="Yeni şifre"><input id="yn-n2" type="password" class="s-inp" placeholder="Yeni (tekrar)"><button class="s-btn" id="yn-bd">Değiştir</button><button class="s-btn" id="yn-bc">Çıkış</button></div>';
+    kutu.appendChild(sd);
+    document.getElementById('yn-bd').onclick=ynDegis;
+    document.getElementById('yn-bc').onclick=function(){_ynSifre=null;ynYenile();};
+  }).catch(function(){});
+}
+function ynAd(mac,eski){ var ad=prompt('İsim:',eski||''); if(ad===null)return; _ynPost('/api/yonetici/ad',{sifre:_ynSifre,mac:mac,ad:ad}).then(function(d){ if(d.ok)ynListele(); else alert(d.hata||'olmadı'); }); }
+function ynYetki(mac,grup,el){ _ynPost('/api/yonetici/yetki',{sifre:_ynSifre,mac:mac,grup:grup,deger:!el.classList.contains('on')}).then(function(d){ if(d.ok){el.classList.toggle('on');} else alert(d.hata||'olmadı'); }); }
+function ynRol(mac,rol){ _ynPost('/api/yonetici/rol',{sifre:_ynSifre,mac:mac,rol:rol}).then(function(d){ if(!d.ok) alert(d.hata||'olmadı'); }); }
+function ynSil(mac){ if(!confirm(mac+' silinsin mi?'))return; _ynPost('/api/yonetici/sil',{sifre:_ynSifre,mac:mac}).then(function(d){ if(d.ok) ynListele(); else alert(d.hata||'olmadı'); }); }
+function ynDegis(){
+  var e=document.getElementById('yn-e').value,n1=document.getElementById('yn-n1').value,n2=document.getElementById('yn-n2').value;
+  if(n1!==n2){alert('Yeni şifreler aynı değil');return;}
+  _ynPost('/api/yonetici/sifre_degistir',{eski:e,yeni:n1}).then(function(d){ if(d.ok){alert('Şifre değişti');_ynSifre=n1;ynListele();} else alert(d.hata||'olmadı'); });
+}
+window.addEventListener('load',function(){ setTimeout(ynYenile,1000); });
+/* FORD KULLANICI KILIT */
+if(typeof _ynPost==='undefined'){window._ynPost=function(u,o){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(o||{})}).then(function(r){return r.json();});};}
+if(typeof _ynSifre==='undefined'){window._ynSifre=null;}
+(function(){var st=document.createElement('style');st.textContent=
+ '#sp-kullanici{position:relative}'+
+ '#kul-kilit{display:none;position:absolute;inset:0;z-index:60;background:rgba(8,20,34,.975);align-items:center;justify-content:center;padding:20px}'+
+ '#kul-kilit.ac{display:flex}'+
+ '#kul-kilit .kul-kutu{max-width:340px;width:100%;text-align:center;background:#12304d;border:1px solid #1d3a5c;border-radius:14px;padding:22px}'+
+ '#kul-kilit .kul-b{font-size:16px;font-weight:700;margin-top:6px}'+
+ '#kul-kilit .kul-a{font-size:12.5px;color:#9fc0e4;margin:6px 0 14px}'+
+ '#kul-kilit input{margin-bottom:10px}';
+ document.head.appendChild(st);})();
+function kulGiris(){var s=(document.getElementById('kul-sifre')||{}).value||'';
+ _ynPost('/api/yonetici/giris',{sifre:s}).then(function(d){ if(d.ok){_ynSifre=s;kulKilitUygula();if(typeof kullanicilariCiz==='function')kullanicilariCiz();} else alert('Şifre yanlış'); });}
+function kulKilitUygula(){var ov=document.getElementById('kul-kilit');if(!ov)return;
+ fetch('/api/yonetici/durum').then(function(r){return r.ok?r.json():{sifre_var:false};}).then(function(d){
+   if(d.sifre_var&&!_ynSifre){ov.classList.add('ac');}else{ov.classList.remove('ac');}
+ }).catch(function(){ov.classList.remove('ac');});}
+window.addEventListener('load',function(){ setTimeout(function(){
+   if(typeof showSPanel==='function'&&!showSPanel._kulW){var o=showSPanel;window.showSPanel=function(n,el){o(n,el);if(n==='kullanici')kulKilitUygula();};window.showSPanel._kulW=1;}
+   kulKilitUygula();
+ },1100); });
+/* FORD AYAR KILIT */
+if(typeof _ynPost==='undefined'){window._ynPost=function(u,o){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(o||{})}).then(function(r){return r.json();});};}
+if(typeof _ynSifre==='undefined'){window._ynSifre=null;}
+(function(){var st=document.createElement('style');st.textContent=
+ '.settings-app-inner{position:relative}'+
+ '#ayar-kilit{display:none;position:absolute;inset:0;z-index:70;background:rgba(8,20,34,.985);align-items:center;justify-content:center;padding:20px}'+
+ '#ayar-kilit.ac{display:flex}'+
+ '#ayar-kilit .ayk-kutu{max-width:340px;width:100%;text-align:center;background:#12304d;border:1px solid #1d3a5c;border-radius:14px;padding:24px}'+
+ '#ayar-kilit .ayk-b{font-size:17px;font-weight:700;margin-top:6px}'+
+ '#ayar-kilit .ayk-a{font-size:12.5px;color:#9fc0e4;margin:6px 0 14px}'+
+ '#ayar-kilit input{margin-bottom:10px}';document.head.appendChild(st);})();
+function ayarGiris(){var s=(document.getElementById('ayar-sifre')||{}).value||'';
+ _ynPost('/api/yonetici/giris',{sifre:s}).then(function(d){ if(d.ok){_ynSifre=s;ayarKilitUygula();} else alert('Şifre yanlış'); });}
+function ayarKilitUygula(){var ov=document.getElementById('ayar-kilit');if(!ov)return;
+ fetch('/api/yonetici/durum').then(function(r){return r.ok?r.json():{sifre_var:false};}).then(function(d){
+   if(d.sifre_var&&!_ynSifre){ov.classList.add('ac');var i=document.getElementById('ayar-sifre');if(i)i.value='';}else{ov.classList.remove('ac');}
+ }).catch(function(){ov.classList.remove('ac');});}
+window.addEventListener('load',function(){ setTimeout(function(){
+   var ov=document.getElementById('overlay-settings');
+   if(ov&&!ov._aykW){ov._aykW=1; try{new MutationObserver(function(){ if(ov.classList.contains('open')) ayarKilitUygula(); }).observe(ov,{attributes:true,attributeFilter:['class']});}catch(e){} }
+   ayarKilitUygula();
+ },1000); });
+/* FORD YAKINLIK DUGME JS */
+function yakinlikKilidiBas(el){ /* FORD YAKINLIK KILIT */
+  if(typeof _ynSifre==='undefined' || !_ynSifre){ alert('Önce Yönetici girişi yapın (yukarıdaki Giriş).'); return; }
+  el.classList.toggle('on');
+  var aktif = el.classList.contains('on');
+  var _p=(typeof _ynPost==='function')?_ynPost('/api/yakinlik',{aktif:aktif,sifre:_ynSifre}):fetch('/api/yakinlik',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({aktif:aktif,sifre:_ynSifre})}).then(function(r){return r.json();});
+  _p.then(function(d){ if(!d||!d.ok){ el.classList.toggle('on'); alert((d&&d.hata)||'olmadı'); } }).catch(function(){ el.classList.toggle('on'); });
+}
+window.addEventListener('load', function(){
+  setTimeout(function(){
+    fetch('/api/yakinlik').then(function(r){return r.json();}).then(function(d){
+      var el=document.querySelector('.toggle[data-key="t_yakinlik_zorunlu"]');
+      if(el){ if(d&&d.aktif) el.classList.add('on'); else el.classList.remove('on'); }
+    }).catch(function(){});
+  }, 900);
+});
+/* FORD PROFIL TELEFON */
+function _pfSifre(){ return (typeof _ynSifre!=='undefined' && _ynSifre) ? _ynSifre : null; }
+function _pfTelDoldur(){
+  var sel=document.getElementById('pfTelefon'); if(!sel) return;
+  var not=document.getElementById('pfTelNot');
+  var s=_pfSifre();
+  if(!s){ sel.innerHTML='<option value="">— önce Kullanıcılar şifresiyle giriş —</option>'; if(not)not.textContent='Telefon bağlamak için Kullanıcılar ekranında şifreyle giriş yapın.'; return; }
+  var cur=''; try{ var u=kullaniciBul(_duzenlenen); cur=(u&&u.telMac)||''; }catch(e){}
+  fetch('/api/yonetici/telefonlar2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sifre:s})})
+   .then(function(r){return r.json();}).then(function(d){
+     if(!d||!d.ok){ sel.innerHTML='<option value="">— liste alınamadı —</option>'; return; }
+     var h='<option value="">— bu profile telefon bağla —</option>';
+     (d.telefonlar||[]).forEach(function(t){
+       var ad=(t.ad||t.mac);
+       h+='<option value="'+t.mac+'"'+((t.mac===cur)?' selected':'')+'>'+ad+' ('+t.mac+')</option>';
+     });
+     sel.innerHTML=h;
+     if(not)not.textContent='Kaydedince seçilen telefona bu profilin adı ve izinleri yazılır.';
+   }).catch(function(){});
+}
+function _pfTelKaydet(){
+  var sel=document.getElementById('pfTelefon'); if(!sel) return;
+  var mac=sel.value; if(!mac) return;
+  var s=_pfSifre(); if(!s) return;
+  var u; try{ u=kullaniciBul(_duzenlenen); }catch(e){}
+  if(u){ u.telMac=mac; }
+  var ad=''; try{ ad=document.getElementById('pfAd').value||''; }catch(e){}
+  fetch('/api/yonetici/ad',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sifre:s,mac:mac,ad:ad})}).catch(function(){});
+  var durum={};
+  try{ document.querySelectorAll('#pfYetki .toggle').forEach(function(t){ durum[t.getAttribute('data-y')]=t.classList.contains('on'); }); }catch(e){}
+  ['kapi','cam','motor','bagaj','isik','muzik'].forEach(function(g){
+    fetch('/api/yonetici/yetki',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sifre:s,mac:mac,grup:g,deger:!!durum[g]})}).catch(function(){});
+  });
+}
+window.addEventListener('load',function(){ setTimeout(function(){
+  try{
+    var pm=document.getElementById('profilModal');
+    if(pm && !pm._pfW){ pm._pfW=1;
+      new MutationObserver(function(){ if(pm.classList.contains('ac')) _pfTelDoldur(); })
+        .observe(pm,{attributes:true,attributeFilter:['class']}); }
+    if(typeof profilKaydet==='function' && !window._pfKW){ window._pfKW=1;
+      var _opk=profilKaydet;
+      window.profilKaydet=function(){ try{_pfTelKaydet();}catch(e){} return _opk.apply(this,arguments); }; }
+  }catch(e){}
+},1200); });
 function toggleBas(el){
   el.classList.toggle('on');
   const k = el.dataset.key;

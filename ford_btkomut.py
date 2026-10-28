@@ -3,7 +3,7 @@
 """
 ford_btkomut.py  —  BLUETOOTH KÖPRÜSÜ (BlueZ D-Bus / pybluez YOK)
 =====================================================================
-28 Kasım 2026  —  GENEL KÖPRÜ sürümü
+29 Ekim 2026  —  GENEL KÖPRÜ + TELEFON KİMLİĞİ sürümü
 
 NE YAPAR
     Telefon/tablet (FORD Panel APK) --Bluetooth SPP--> buraya -->
@@ -14,9 +14,18 @@ NE YAPAR
        - araç komutları  (POST /api/komut)
        - durum okuma     (GET  /api/durum)
        - MÜZİK           (GET/POST /api/muzik, /api/muzik/...)
+       - güvenlik/yönetim (/api/yonetici/*)
        - medya, ayarlar  (diğer tüm /api/* uçları)
     Müziğin SESİ Pi'den / araç hoparlöründen çıkar; buradan yalnızca
     KONTROL (oynat/duraklat/sıradaki, liste, yükle, sil) gider.
+
+TELEFON KİMLİĞİ (YENİ — güvenlik için şart)
+    BT üzerinden gelen her istek Pi'ye 127.0.0.1'den ulaşır; bu yüzden
+    panel "hangi telefon?" diye ayırt EDEMEZDİ (BT'de güvenlik hep-ya-hiç
+    olurdu). Artık köprü, bağlı telefonun BLUETOOTH MAC'ini her isteğe
+    'X-Ford-Mac' başlığı olarak ekler. Panel bu başlığı YALNIZCA localhost'tan
+    (yani bu köprüden) gelince kabul eder -> BT'de de telefon-bazlı izinler
+    çalışır. (WiFi'de MAC, ağdan/ARP'tan bulunur; başlık kullanılmaz.)
 
 PROTOKOL  (APK <-> Pi)
     APK  ->  "REQ|<method>|<base64(yol)>|<base64(govde)>\\n"
@@ -24,7 +33,6 @@ PROTOKOL  (APK <-> Pi)
     (Geriye dönük: düz "KAPILARI_AC\\n" gelirse POST /api/komut yapılır.)
 
 GEREKLİ (zaten kurulu): BlueZ 5.x + python3-dbus + python3-gi
-    sudo apt-get install -y python3-dbus python3-gi
 
 ÇALIŞTIRMA (systemd ile, User=root):
     sudo systemctl restart ford-btkomut
@@ -32,6 +40,7 @@ GEREKLİ (zaten kurulu): BlueZ 5.x + python3-dbus + python3-gi
 """
 
 import os
+import re
 import sys
 import json
 import base64
@@ -55,17 +64,30 @@ def log(*a):
     print("[btkomut]", *a, flush=True)
 
 
+def mac_coz(cihaz_yolu):
+    """'/org/bluez/hci0/dev_2A_E6_4A_CD_73_50' -> '2A:E6:4A:CD:73:50' (yoksa '')."""
+    try:
+        m = re.search(r"dev_([0-9A-Fa-f_]{17})", str(cihaz_yolu))
+        if m:
+            return m.group(1).replace("_", ":").upper()
+    except Exception:
+        pass
+    return ""
+
+
 # --------------------------------------------------------------------
-#  Paneldeki HTTP ucuna isteği yönlendir
+#  Paneldeki HTTP ucuna isteği yönlendir (telefon MAC'i başlıkla)
 # --------------------------------------------------------------------
-def http_istek(method, yol, govde):
-    """Panelin localhost ucuna method+body ile gider. (status, metin) döner."""
+def http_istek(method, yol, govde, mac=""):
+    """Panelin localhost ucuna method+body+MAC ile gider. (status, metin) döner."""
     try:
         url = PANEL + yol
         data = govde.encode("utf-8") if govde else None
         req = urllib.request.Request(url, data=data, method=method)
         if data is not None:
             req.add_header("Content-Type", "application/json")
+        if mac:
+            req.add_header("X-Ford-Mac", mac)   # telefon kimliği (güvenlik)
         with urllib.request.urlopen(req, timeout=25) as r:
             return r.getcode(), r.read().decode("utf-8", "ignore")
     except urllib.error.HTTPError as e:
@@ -78,7 +100,7 @@ def http_istek(method, yol, govde):
         return 0, json.dumps({"ok": False, "hata": str(e)[:80]})
 
 
-def satir_isle(satir):
+def satir_isle(satir, mac=""):
     """Gelen bir satırı işler, geri gönderilecek yanıtı döner (yoksa None)."""
     satir = (satir or "").strip()
     if not satir:
@@ -100,14 +122,14 @@ def satir_isle(satir):
             govde = ""
         if not yol.startswith("/"):
             yol = "/" + yol
-        status, yanit = http_istek(method, yol, govde)
+        status, yanit = http_istek(method, yol, govde, mac)
         log(method, yol, "->", status, "(%dB)" % len(yanit))
         return "RES|" + str(status) + "|" + \
                base64.b64encode(yanit.encode("utf-8")).decode("ascii")
 
     # Geriye dönük uyumluluk: düz komut
     status, yanit = http_istek("POST", "/api/komut",
-                               json.dumps({"komut": satir.upper()}))
+                               json.dumps({"komut": satir.upper()}), mac)
     try:
         c = json.loads(yanit)
         if c.get("ok"):
@@ -120,12 +142,12 @@ def satir_isle(satir):
 # --------------------------------------------------------------------
 #  Bir BT istemcisiyle konuşma döngüsü
 # --------------------------------------------------------------------
-def istemci_dongu(sock):
+def istemci_dongu(sock, mac=""):
     try:
         sock.setblocking(True)
     except Exception:
         pass
-    log("istemci baglandi")
+    log("istemci baglandi", mac or "(mac yok)")
     tampon = ""
     try:
         try:
@@ -139,7 +161,7 @@ def istemci_dongu(sock):
             tampon += veri.decode("utf-8", "ignore")
             while "\n" in tampon:
                 satir, tampon = tampon.split("\n", 1)
-                yanit = satir_isle(satir)
+                yanit = satir_isle(satir, mac)
                 if yanit:
                     try:
                         sock.sendall((yanit + "\n").encode("utf-8"))
@@ -153,7 +175,7 @@ def istemci_dongu(sock):
             sock.close()
         except Exception:
             pass
-        log("istemci bitti")
+        log("istemci bitti", mac or "")
 
 
 # --------------------------------------------------------------------
@@ -176,8 +198,10 @@ class Profil(dbus.service.Object):
             os.close(tfd)   # fromfd dup'ladı; orijinali kapat
         except Exception:
             pass
-        log("NewConnection:", str(cihaz))
-        threading.Thread(target=istemci_dongu, args=(sock,), daemon=True).start()
+        mac = mac_coz(cihaz)
+        log("NewConnection:", str(cihaz), "mac=", mac or "(yok)")
+        threading.Thread(target=istemci_dongu, args=(sock, mac),
+                         daemon=True).start()
 
     @dbus.service.method("org.bluez.Profile1", in_signature="o", out_signature="")
     def RequestDisconnection(self, cihaz):
