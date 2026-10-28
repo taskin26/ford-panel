@@ -2,7 +2,9 @@ package com.ford.panel;
 
 import android.Manifest;
 import android.app.AlertDialog;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -17,6 +19,7 @@ import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.JsPromptResult;
 import android.webkit.JsResult;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -146,7 +149,37 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
                         .show();
                 return true;
             }
+            // MP3 yukleme: paneldeki <input type=file> tiklaninca dosya seciciyi ac.
+            @Override public boolean onShowFileChooser(WebView v,
+                    ValueCallback<Uri[]> geriCagri, FileChooserParams parametreler) {
+                if (dosyaSecGeri != null) { dosyaSecGeri.onReceiveValue(null); }
+                dosyaSecGeri = geriCagri;
+                try {
+                    Intent niyet = parametreler.createIntent();  // input'un accept/multiple'ini korur
+                    niyet.addCategory(Intent.CATEGORY_OPENABLE);
+                    startActivityForResult(niyet, DOSYA_SEC_KODU);
+                } catch (Exception e) {
+                    dosyaSecGeri = null;
+                    durumYaz("Dosya secici acilamadi");
+                    return false;
+                }
+                return true;
+            }
         });
+    }
+
+    // ---- Dosya secici (MP3 yukleme) ----
+    private static final int DOSYA_SEC_KODU = 4711;
+    private ValueCallback<Uri[]> dosyaSecGeri;
+
+    @Override protected void onActivityResult(int kod, int sonucKodu, Intent veri) {
+        super.onActivityResult(kod, sonucKodu, veri);
+        if (kod == DOSYA_SEC_KODU) {
+            if (dosyaSecGeri == null) return;
+            Uri[] sonuc = WebChromeClient.FileChooserParams.parseResult(sonucKodu, veri);
+            dosyaSecGeri.onReceiveValue(sonuc);   // null ise iptal edilmis sayilir
+            dosyaSecGeri = null;
+        }
     }
 
     /**
