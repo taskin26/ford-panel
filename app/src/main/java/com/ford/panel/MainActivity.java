@@ -63,6 +63,7 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
     private ConnectivityManager.NetworkCallback agGeri;
 
     private volatile boolean piCanli = false;   // panel su an Pi'den mi yuklu
+    private volatile boolean btModu = false;     // kullanici BT sectiyse: WiFi'ye otomatik gecme
     private final ExecutorService exec = Executors.newSingleThreadExecutor();
     private final Handler ana = new Handler(Looper.getMainLooper());
 
@@ -264,6 +265,7 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
             final String b = base;
             ana.post(() -> {
                 taraniyor = false;
+                if (btModu) return;   // kullanici BT sardi -> WiFi'ye GECME, BT'yi ezme
                 if (b != null) {
                     piBase = b;
                     if (!piCanli) {
@@ -357,6 +359,7 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
 
     // ---- WiFi (FORD agi) baglanti ----
     private void wifiBaglan() {
+        btModu = false;   // kullanici WiFi'yi sardi -> BT kilidini birak
         durumYaz("FORD agina baglaniliyor...");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             WifiNetworkSpecifier spec = new WifiNetworkSpecifier.Builder()
@@ -387,6 +390,7 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
     // ---- Bluetooth baglanti ----
     private void btBaglan() {
         if (!btIzinVar()) { btIzinIste(); return; }
+        btModu = true;   // kullanici BT sardi -> arka plandan donunce WiFi'ye otomatik gecme
         // Komutlarin BT'ye gitmesi icin gomulu panele gec (koprü orada aktif).
         if (piCanli) { piCanli = false; web.loadUrl(YEREL_URL); }
         durumYaz("Bluetooth baglaniliyor...");
@@ -417,7 +421,8 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
 
     @Override protected void onResume() {
         super.onResume(); tamEkran();
-        if (!piCanli) piDene(true);   // ekrana donunce tekrar baglanmayi dene
+        // BT modundaysak arka plandan donunce WiFi'ye GECME (baglanti sabit kalsin).
+        if (!piCanli && !btModu) piDene(true);
     }
 
     private void tamEkran() {
