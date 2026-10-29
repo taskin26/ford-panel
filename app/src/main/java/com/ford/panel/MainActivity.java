@@ -150,18 +150,32 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
                         .show();
                 return true;
             }
-            // MP3 yukleme: paneldeki <input type=file> tiklaninca dosya seciciyi ac.
+            // Dosya secici: web <input type=file accept=...> turune gore acilir.
+            // MP3 icin accept="audio/*" gelir -> ses filtresi. .ino / baska dosya
+            // yuklerken accept MIME degilse (or. ".ino" ya da bos) TUM dosyalar
+            // gosterilir ki .ino SECILEBILSIN. (Eskiden sabit "audio/*" idi ve
+            // .ino hic gorunmuyordu.)
             @Override public boolean onShowFileChooser(WebView v,
                     ValueCallback<Uri[]> geriCagri, FileChooserParams parametreler) {
                 if (dosyaSecGeri != null) { dosyaSecGeri.onReceiveValue(null); }
                 dosyaSecGeri = geriCagri;
                 try {
+                    String[] kabul = (parametreler != null)
+                            ? parametreler.getAcceptTypes() : null;
+                    String tip = "*/*";            // varsayilan: tum dosyalar
+                    boolean mimeVar = false;
+                    if (kabul != null && kabul.length >= 1 && kabul[0] != null
+                            && kabul[0].contains("/")) {   // gercek MIME (audio/*)
+                        tip = kabul[0].trim();
+                        mimeVar = true;
+                    }
                     Intent niyet = new Intent(Intent.ACTION_GET_CONTENT);
                     niyet.addCategory(Intent.CATEGORY_OPENABLE);
-                    niyet.setType("audio/*");
+                    niyet.setType(tip);
+                    if (mimeVar) niyet.putExtra(Intent.EXTRA_MIME_TYPES, kabul);
                     niyet.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);  // COKLU secim
                     startActivityForResult(
-                            Intent.createChooser(niyet, "MP3 dosyalarini sec"), DOSYA_SEC_KODU);
+                            Intent.createChooser(niyet, "Dosya seç"), DOSYA_SEC_KODU);
                 } catch (Exception e) {
                     dosyaSecGeri = null;
                     durumYaz("Dosya secici acilamadi");
