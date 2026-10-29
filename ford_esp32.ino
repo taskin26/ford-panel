@@ -166,7 +166,7 @@ const bool EL_FRENI_KONTROLU = false;
 //  D35 ARTIK SADECE KAPI MÜŞÜRÜNÜN. El freni kilidi kapatıldığı için
 //  çakışma yok. El freni müşürü takılırsa D35'e DEĞİL, başka bir pine.
 #define PIN_AKU      34        // akü voltajı (30k + 7.5k bölücü)
-#define PIN_SURUCU   17        // D17 (TX2) - DAHILI PULL-UP var (yolcu gibi). Sürücü müşürü BURAYA.
+#define PIN_SURUCU   35        // KART D · PC817 #1  sürücü kapısı (35 + harici 10k pull-up -> 3V3)
 #define PIN_KAPUT    36        // KART D · PC817 #2  kaput
 #define PIN_BAGAJ    39        // KART D · PC817 #3  bagaj kapağı
 
@@ -1707,7 +1707,7 @@ void setup() {
 
   // KART D girişleri — pull-up kartta, burada sadece INPUT
   pinMode(PIN_AKU,    INPUT);
-  pinMode(PIN_SURUCU, INPUT_PULLUP);   // GPIO17 dahili pull-up: bosta KAPALI okur
+  pinMode(PIN_SURUCU, INPUT);
   pinMode(PIN_KAPUT,  INPUT);
   pinMode(PIN_BAGAJ,  INPUT);
 
