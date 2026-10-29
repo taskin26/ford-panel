@@ -3396,16 +3396,39 @@ async function eyKur(){
   setTimeout(eySor, 400);
 }
 
-async function eyYaz(){
+async function eyYaz(){ /* FORD YAZEKRAN DUZELT */
   if(!confirm('ESP32 yeniden yazılacak.\n\nÖnce derlenir — derlemede hata ' +
               'çıkarsa ESP32\'ye hiç dokunulmaz.\nİşlem sırasında röleler ' +
               'bırakılır ve ESP32 yeniden başlar.\n\nDevam?')) return;
-  const b = document.getElementById('eyYazBtn');
+  var b = document.getElementById('eyYazBtn');
+  var kayit = document.getElementById('eyKayit');
+  var durum = document.getElementById('eyDurum');
   if(b){ b.disabled = true; b.style.opacity = '.5'; }
-  try{
-    await fetch('/api/esp32yaz/yaz', {method:'POST'});
-  }catch(e){}
-  setTimeout(eySor, 400);
+  if(kayit){ kayit.style.display=''; kayit.textContent='Başlatılıyor… (derleme 1-2 dk sürebilir)'; }
+  if(durum){ durum.textContent='⏳ Başlatılıyor…'; durum.style.color=''; }
+  try{ await fetch('/api/esp32yaz/yaz', {method:'POST'}); }catch(e){}
+  var t0 = Date.now();
+  if(window._eyTik){ clearInterval(window._eyTik); }
+  function _bitir(){ if(window._eyTik){clearInterval(window._eyTik);window._eyTik=null;} if(b){b.disabled=false;b.style.opacity='';} }
+  window._eyTik = setInterval(async function(){
+    try{
+      var r = await fetch('/api/esp32yaz/durum', {cache:'no-store'});
+      var d = await r.json();
+      if(d && d.satirlar && d.satirlar.length && kayit){
+        kayit.style.display='';
+        var altta = kayit.scrollTop + kayit.clientHeight >= kayit.scrollHeight - 30;
+        kayit.textContent = d.satirlar.join('\n');
+        if(altta) kayit.scrollTop = kayit.scrollHeight;
+      }
+      if(durum && d){
+        if(d.calisiyor){ var ad={kurulum:'Kuruluyor',derleme:'Derleniyor',yazma:'Yazılıyor'};
+          durum.textContent='⏳ '+(ad[d.asama]||d.asama||'')+' — '+(d.mesaj||'')+'  ('+(d.gecen||0)+' sn)'; durum.style.color=''; }
+        else if(d.asama==='bitti'){ durum.textContent=(d.basarili?'✓ ':'✕ ')+(d.mesaj||''); durum.style.color=d.basarili?'':'#ff6666'; }
+      }
+      if(d && !d.calisiyor){ _bitir(); }
+    }catch(e){}
+    if(Date.now()-t0 > 300000){ _bitir(); }   /* 5 dk guvenlik: butonu her halukarda ac */
+  }, 1000);
 }
 
 /* ---- BLUETOOTH: OBD2 adaptoru eslestirme ----
