@@ -443,6 +443,19 @@ static bool rfidBaslat() {
   rcYaz(RC_CommandReg, RC_CMD_SOFTRESET);
   delay(60);
 
+  // 30 Ekim 2026 - CIZIRTI DUZELTMESI.
+  // RC522 artik Pi'de (RFID_ESP32=0). Eskiden bu bayrak KONTROL EDILMIYORDU:
+  // ESP yine de anteni aciyor (asagida 0x03) ve loop() 150 ms'de bir
+  // yokluyordu. RC522'nin 13.56 MHz anteni surekli yayin yapinca yan
+  // taraftaki analog mikrofona SABIT CIZIRTI biniyordu. Cozum: bayrak 0
+  // iken anteni ACMADAN cik. Soft reset zaten anteni kapatir; ek olarak
+  // TxControl surucu bitlerini sifirla. Boylece rfidVar=false kalir,
+  // rfidKontrol() hic calismaz, anten yayin yapmaz, cizirti gider.
+  if (!RFID_ESP32) {
+    rcYaz(RC_TxControlReg, 0x00);   // anten surucu bitleri KAPALI (yayin yok)
+    return false;
+  }
+
   byte s = rcOku(RC_VersionReg);
   // 0x00 ve 0xFF = modul yok / kablo kopuk. Gercek yongalar 0x88-0x92.
   if (s == 0x00 || s == 0xFF) return false;
