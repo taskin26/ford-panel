@@ -1,0 +1,17 @@
+zip: 36M
+=== TUM AGAC ===
+./vosk-model-small-tr-0.3/Gr.fst
+./vosk-model-small-tr-0.3/HCLr.fst
+./vosk-model-small-tr-0.3/README
+./vosk-model-small-tr-0.3/disambig_tid.int
+./vosk-model-small-tr-0.3/final.mdl
+./vosk-model-small-tr-0.3/ivector/final.dubm
+./vosk-model-small-tr-0.3/ivector/final.ie
+./vosk-model-small-tr-0.3/ivector/final.mat
+./vosk-model-small-tr-0.3/ivector/global_cmvn.stats
+./vosk-model-small-tr-0.3/ivector/online_cmvn.conf
+./vosk-model-small-tr-0.3/ivector/splice.conf
+./vosk-model-small-tr-0.3/mfcc.conf
+./vosk-model-small-tr-0.3/word_boundary.int
+=== final.mdl ===
+-rw-r--r-- 1 runner runner 13304273 Apr 28  2020 ./vosk-model-small-tr-0.3/final.mdl
