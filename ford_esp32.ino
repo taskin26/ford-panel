@@ -755,10 +755,15 @@ String kanalCalistir(int i) {
   // karari VOLTAJDAN DEGIL komut hafizasindan: komutla calistirildiysa
   // (kullaniciMotorIstedi) tekrar basma. Boylece dinlenen 13V "calisiyor"
   // sanilip "calistir" reddedilmiyor, role tetikleniyor.
-  if (String(k.ad) == "MARS" && !motorDurdurmaIstegi
-      && kullaniciMotorIstedi) {
-    return String("RET|MARS|motor_zaten_calistirildi|komutla");
-  }
+  // 30 Ekim 2026 - BLOKE KILIT KALDIRILDI.
+  // Eskiden: kullaniciMotorIstedi bayragi acikken "calistir" MARS'a basmazdi.
+  // Sorun: motor kendiliginden durunca (stall/oto-stop) bayrak ACIK kaliyordu;
+  // o anda "calistir" is yapmiyor, "durdur" ise kilidi atlayip motoru
+  // calistiriyordu -> komutlar TERS gorunuyordu. Ekran artik durumu dogru
+  // takip ediyor (panelde Motor'a basili tutunca senkronlaniyor), bu yuzden
+  // MARS'i HER "calistir" komutunda tetikliyoruz. Tek-buton toggle guvenle
+  // calisir; bayrak sadece keep-alive (ANAHTAR_GUC) icin set edilir.
+  // (Bloke eden RET cikarildi.)
 
   // MOTORU CALISTIR (MARS, durdurma DEGIL): kullanici motoru istedi.
   // Bu andan itibaren ANAHTAR_GUC otomatik kesilemez (voltaj dusuk okunsa
