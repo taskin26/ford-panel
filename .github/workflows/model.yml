@@ -1,25 +1,32 @@
 name: Vosk model indir
 on:
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   model:
     runs-on: ubuntu-latest
     steps:
-      - name: Modeli indir
+      - uses: actions/checkout@v4
+      - name: Modeli indir + yapiyi kaydet
         run: |
           curl -sSL -o model.zip "https://alphacephei.com/vosk/models/vosk-model-small-tr-0.3.zip"
-          ls -la model.zip
           mkdir x && cd x && unzip -q ../model.zip
-          echo "=== KLASOR YAPISI ==="
-          find . -maxdepth 2 -type d | sort
-          echo "=== final.mdl nerede? ==="
-          find . -name final.mdl -exec ls -la {} \;
-          echo "=== am klasoru ==="
-          ls -la */am 2>/dev/null || echo "am klasoru YOK"
-          echo "=== kok dosyalar ==="
-          ls -la */
-      - name: Artifact yukle
-        uses: actions/upload-artifact@v4
+          {
+            echo "zip: $(du -h ../model.zip | cut -f1)"
+            echo "=== TUM AGAC ==="
+            find . -type f | sort
+            echo "=== final.mdl ==="
+            find . -name final.mdl -exec ls -la {} \;
+          } > ../model_yapisi.txt
+      - name: Yapiyi commit'le
+        run: |
+          git config user.email actions@github.com
+          git config user.name CI
+          git add model_yapisi.txt
+          git commit -m "model yapisi [skip ci]" || true
+          git push
+      - uses: actions/upload-artifact@v4
         with:
           name: vosk-model-tr
           path: model.zip
