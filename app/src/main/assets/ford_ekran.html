@@ -5099,4 +5099,32 @@ initSpeedo();updateSpeedo(0);buildPlaylist();initCarView();
 secimleriBagla();kontrolleriGeriYukle();kullanicilariCiz();hedefleriCiz();yerleriBildir();temaUygula();
 </script>
 
+<script>
+/* MOTOR EKRAN DUZELT - tusa basili tut (0.6 sn): SADECE etiketi cevirir,
+   motora HIC komut gitmez. Sensorsuz toggle ters faza dusunce duzeltmek icin. */
+(function(){
+  function kur(){
+    var b=document.getElementById('btnMotor'); if(!b||b._mdk) return; b._mdk=1;
+    var t=null, uzun=false;
+    function bas(){ uzun=false; if(t)clearTimeout(t); t=setTimeout(function(){uzun=true; motorEkranDuzelt();},600); }
+    function birak(){ if(t){clearTimeout(t);t=null;} }
+    b.addEventListener('touchstart', bas, {passive:true});
+    b.addEventListener('touchend', birak);
+    b.addEventListener('touchmove', birak, {passive:true});
+    b.addEventListener('touchcancel', birak);
+    b.addEventListener('mousedown', bas);
+    b.addEventListener('mouseup', birak);
+    b.addEventListener('mouseleave', birak);
+    b.addEventListener('click', function(e){ if(uzun){e.stopImmediatePropagation();e.preventDefault();uzun=false;} }, true);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',kur); else kur();
+  setTimeout(kur,1500); setTimeout(kur,4000);
+})();
+function motorEkranDuzelt(){
+  try{ navigator.vibrate && navigator.vibrate(40);}catch(e){}
+  fetch('/api/motor/duzelt',{method:'POST'}).then(function(r){return r.json();}).then(function(d){
+    if(d&&d.ok){ try{yaz('motorDurum',d.motor?'Çalışıyor':'Durdu');}catch(e){} try{dugmeDurum('btnMotor',!!d.motor,'Çalışıyor','Durdu');}catch(e){} }
+  }).catch(function(){});
+}
+</script>
 </body></html>

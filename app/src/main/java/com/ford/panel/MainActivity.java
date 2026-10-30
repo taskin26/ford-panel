@@ -98,6 +98,7 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
 
     private void kurWebView() {
         WebSettings s = web.getSettings();
+        s.setCacheMode(WebSettings.LOAD_NO_CACHE);  // panel HER acilista TAZE gelsin (eski surum takilmasin)
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
