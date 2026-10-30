@@ -1,0 +1,25 @@
+name: Vosk model indir
+on:
+  workflow_dispatch:
+jobs:
+  model:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Modeli indir
+        run: |
+          curl -sSL -o model.zip "https://alphacephei.com/vosk/models/vosk-model-small-tr-0.3.zip"
+          ls -la model.zip
+          mkdir x && cd x && unzip -q ../model.zip
+          echo "=== KLASOR YAPISI ==="
+          find . -maxdepth 2 -type d | sort
+          echo "=== final.mdl nerede? ==="
+          find . -name final.mdl -exec ls -la {} \;
+          echo "=== am klasoru ==="
+          ls -la */am 2>/dev/null || echo "am klasoru YOK"
+          echo "=== kok dosyalar ==="
+          ls -la */
+      - name: Artifact yukle
+        uses: actions/upload-artifact@v4
+        with:
+          name: vosk-model-tr
+          path: model.zip
