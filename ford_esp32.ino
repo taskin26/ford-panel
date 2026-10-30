@@ -1286,6 +1286,24 @@ void komutIsle(String k) {
   // Iki sart birden saglanmadan role cekilmez. Akü bölücüsü takili
   // degilse (aku=0.00) motor durumu bilinemez ve komut hep reddedilir -
   // guvenli taraf budur.
+  // ---- MOTOR DURUM SENKRON (panel basili-tut) ----
+  // 30 Ekim 2026: Motor tek-buton toggle, sensoru yok. ESP reflash'landiginda
+  // ya da motor elle calistirildiginda "kullaniciMotorIstedi" bayragi gercekle
+  // ters duser; o zaman MOTOR_DURDUR "zaten durmus" deyip reddeder, motor
+  // durmaz. Bu komutlar motoru PULSE'LAMADAN sadece bayragi gercekle esitler.
+  // Panel'de Motor'a basili tutunca cagrilir: ekran + ESP ayni hale gelir,
+  // ardindan durdurma calisir.
+  if (k == "MOTOR_ISTEDI_EVET") {
+    kullaniciMotorIstedi = true;
+    cevap("OK|MOTOR_ISTEDI|1|motor_calisiyor_isaretlendi");
+    return;
+  }
+  if (k == "MOTOR_ISTEDI_HAYIR") {
+    kullaniciMotorIstedi = false;
+    cevap("OK|MOTOR_ISTEDI|0|motor_durmus_isaretlendi");
+    return;
+  }
+
   if (k == "MOTOR_DURDUR") {
     // 23 Ekim 2026: "suruluyor" guard'i KALDIRILDI.
     // O guard musur (kapi sensoru) ile "arac gidiyor mu" anlamaya
