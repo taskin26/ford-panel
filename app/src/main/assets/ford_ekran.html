@@ -5127,6 +5127,28 @@ function motorEkranDuzelt(){
   }).catch(function(){});
 }
 </script>
+<!-- ============ SEKME KAYDIRMA DUZELTMESI (tum overlay'ler) ============ -->
+<style>
+  /* Overlay'ler inset:0 ile tam ekran; altlari Android nav cubugunun
+     arkasinda kaliyordu. Altta bosluk birakip icerigi kaydirilir yapiyoruz.
+     Flex kutulara min-height:0 SART, yoksa icerikle buyuyup kaymiyorlar. */
+  .app-overlay{ padding-bottom: max(env(safe-area-inset-bottom,0px), 64px) !important; box-sizing:border-box; }
+  .music-app-inner, .medya-inner, .nav-inner, .settings-app-inner{ min-height:0 !important; }
+  .medya-inner, .nav-inner, .playlist{
+    overflow-y:auto !important; -webkit-overflow-scrolling:touch;
+  }
+  /* settings-app-inner bir grid (yan menu + icerik); her iki sutun da kaysin */
+  .settings-app-inner{ overflow:hidden !important; }
+  .settings-app-inner > *{ min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  /* Kaydirma cubugu gorunur olsun ki altta devami var belli olsun */
+  .medya-inner::-webkit-scrollbar, .nav-inner::-webkit-scrollbar,
+  .playlist::-webkit-scrollbar, .settings-app-inner > *::-webkit-scrollbar{ width:6px; }
+  .medya-inner::-webkit-scrollbar-thumb, .nav-inner::-webkit-scrollbar-thumb,
+  .playlist::-webkit-scrollbar-thumb, .settings-app-inner > *::-webkit-scrollbar-thumb{
+    background:rgba(120,160,200,.55); border-radius:3px;
+  }
+</style>
+
 <!-- ============ SESLI KOMUT (teyp · Google tanima) ============ -->
 <style>
   #sesliFab{position:fixed; right:16px; bottom:84px; z-index:9999;
