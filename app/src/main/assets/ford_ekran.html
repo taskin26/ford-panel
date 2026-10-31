@@ -809,6 +809,59 @@ input[type=range].sldr::-webkit-slider-thumb{-webkit-appearance:none;width:17px;
   .car-svg-wrap{min-height:0}
 }
 
+/* ---------- TEYP: GENIS + ALCAK EKRAN -> HER SEY TEK EKRANA SIGSIN ----------
+   Teyp ~1024x600. Ustteki 760px kurali ekrani KAYDIRILABILIR yapiyordu
+   (yarisi asagida kaliyordu). Burada o kaydirmayi KAPATIP ana ekranin
+   tamamini (saat, gosterge, muzik, hizli kontrol, son komutlar) tek ekrana
+   sigdiriyoruz. Genis teyp = 3 sutun duzeni (min-width:1001). */
+@media (min-width:1001px) and (max-height:760px){
+  .sb{height:40px}
+  /* kaydirma YOK - her sey gorunur, grid ekrani doldurur */
+  .home{overflow:hidden !important}
+  .widget-grid{overflow:hidden !important;flex:1 1 auto !important;min-height:0;
+    grid-template-rows:1fr 1fr !important;gap:7px;padding:7px 9px}
+  .widget{min-height:0}
+  .widget-hd{padding:6px 11px 0;font-size:11px}
+  .widget-body{padding:5px 11px 7px}
+  .dock{position:static !important;box-shadow:none !important;padding:5px 12px}
+
+  /* sol kart: saat + arac gorunumu */
+  .info-clock-top{padding:0}
+  .clock-section{padding:2px 12px 5px}
+  .clock-greet{font-size:12px;margin-bottom:1px}
+  .clock-main{font-size:28px}
+  .clock-date{font-size:11.5px;margin-top:1px}
+  .mini-stats{margin-top:5px;gap:4px}
+  .mstat{padding:2px 7px}
+  .car-svg-wrap{min-height:0 !important;margin:0 8px 6px;padding:2px 6px 4px}
+  .dchip{padding:5px 1px 6px}
+  .dchip .dc-ic{font-size:15px;margin-bottom:2px}
+  .dchip .dc-n{font-size:9.5px}
+  .dchip .dc-s{font-size:10.5px}
+
+  /* orta: gosterge */
+  #speedoSvg{max-width:140px}
+  .speedo-num{font-size:30px}
+  .speedo-unit{font-size:11px}
+  .speedo-aux-row{margin-top:3px}
+  .saux{padding:2px 5px}
+  .saux-v{font-size:13.5px}
+
+  /* sag ust: muzik */
+  .music-mini{padding:5px 12px 3px}
+  .mini-art{width:40px;height:40px;font-size:18px}
+  .mini-controls{padding:0 12px 6px}
+
+  /* sag alt: hizli kontrol + son komutlar tek ekrana */
+  .ctrl-grid{gap:6px}
+  .ctrl-btn{padding:5px 4px;gap:2px}
+  .cb-icon{font-size:18px}
+  .cb-lbl{font-size:11.5px}
+  .cb-sub{font-size:10px}
+  .sk-baslik{margin-top:5px}
+  .sk-kutu{max-height:46px !important;overflow-y:auto}
+}
+
 </style></head><body>
 
 
@@ -5217,17 +5270,26 @@ function motorEkranDuzelt(){
 
   function sesli(t){
     try{
+      // 1) TEYP: Android'in kendi ses motoru (APK koprusu) - arac kolonundan NET cikar.
+      //    WebView'in speechSynthesis'i teypte ses CIKARMIYOR, bu yuzden once bunu dene.
+      if(window.AndroidTTS && typeof AndroidTTS.konus==="function"){
+        var ok=false;
+        try{ ok = AndroidTTS.konus(t); }catch(e){ ok=false; }
+        if(ok){
+          konusuyor=true;
+          // Native motorda bitis geri cagrisi yok -> sureyi tahmin et, eko korumasi icin sustur.
+          var sure = Math.max(1200, (t?t.length:0)*95);
+          clearTimeout(window.__ttsZaman);
+          window.__ttsZaman = setTimeout(function(){ konusuyor=false; susKadar=Date.now()+400; }, sure);
+          return;
+        }
+      }
+      // 2) YEDEK: tarayici TTS (Pi panelinde / normal Chrome'da ses buradan cikar).
       if(!window.speechSynthesis) return;
       window.speechSynthesis.cancel();
+      try{ window.speechSynthesis.resume(); }catch(e){}  // Chrome duraklama hatasi
       var u = new SpeechSynthesisUtterance(t);
       u.lang="tr-TR"; u.rate=1.0; u.volume=1.0;
-      // Turkce ses varsa sec (arac hoparloru net duysun)
-      try{
-        var vs = window.speechSynthesis.getVoices() || [];
-        for(var i=0;i<vs.length;i++){
-          if((vs[i].lang||"").toLowerCase().indexOf("tr")===0){ u.voice=vs[i]; break; }
-        }
-      }catch(e){}
       konusuyor=true;
       u.onend=function(){ konusuyor=false; susKadar=Date.now()+400; };
       u.onerror=function(){ konusuyor=false; susKadar=Date.now()+400; };

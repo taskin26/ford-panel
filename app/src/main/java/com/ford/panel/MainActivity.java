@@ -14,6 +14,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.speech.tts.TextToSpeech;
+import java.util.Locale;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
@@ -65,6 +67,11 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
 
     private volatile boolean piCanli = false;   // panel su an Pi'den mi yuklu
     private volatile boolean btModu = false;     // kullanici BT sectiyse: WiFi'ye otomatik gecme
+
+    // Android'in KENDI ses motoru (navigasyon sesi gibi) - teypin WebView'i
+    // speechSynthesis sesini CIKARMIYOR, bu yuzden sesi buradan verecegiz.
+    private TextToSpeech tts;
+    private volatile boolean ttsHazir = false;
     private final ExecutorService exec = Executors.newSingleThreadExecutor();
     private final Handler ana = new Handler(Looper.getMainLooper());
 
@@ -90,6 +97,9 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
         // Sesli komut icin mikrofon izni (bir kereye mahsus sorulur).
         mikIzinIste();
 
+        // Android TTS motorunu baslat (ses arac/teyp kolonundan ciksin).
+        ttsBaslat();
+
         // Panel HEMEN (gomulu) acilir -> her zaman gorunur.
         web.loadUrl(YEREL_URL);
         durumYaz("Baglanti araniyor...");
@@ -112,6 +122,7 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
         s.setAllowFileAccess(true);
         s.setAllowContentAccess(true);
         web.addJavascriptInterface(new Kopru(), "FordKopru");
+        web.addJavascriptInterface(new SesKopru(), "AndroidTTS");
         web.setWebViewClient(new WebViewClient() {
             @Override public void onPageFinished(WebView v, String url) {
                 // Gomulu (file://) panelde: TUM /api cagrilarini Bluetooth'a yonlendiren shim.
@@ -268,6 +279,43 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
             while ((n = is.read(tmp)) > 0) bo.write(tmp, 0, n);
             return new String(bo.toByteArray(), "UTF-8");
         } catch (Exception e) { return null; }
+    }
+
+    // ---- Android TTS (konusma) ----
+    /** Motoru baslatir, Turkce dili yukler. Teyp Google/baska TTS motoru kullanir. */
+    private void ttsBaslat() {
+        try {
+            tts = new TextToSpeech(getApplicationContext(), status -> {
+                if (status == TextToSpeech.SUCCESS && tts != null) {
+                    int r = TextToSpeech.LANG_MISSING_DATA;
+                    try { r = tts.setLanguage(new Locale("tr", "TR")); } catch (Exception ignored) {}
+                    if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) {
+                        // Turkce ses verisi yoksa yine de konussun (varsayilan dil).
+                        try { tts.setLanguage(Locale.getDefault()); } catch (Exception ignored) {}
+                    }
+                    try { tts.setSpeechRate(1.0f); } catch (Exception ignored) {}
+                    ttsHazir = true;
+                }
+            });
+        } catch (Exception e) { ttsHazir = false; }
+    }
+
+    /** JS'ten cagrilir: panel sesli yanit vermek isteyince buraya gelir -> arac kolonu. */
+    private class SesKopru {
+        @JavascriptInterface public boolean konus(String metin) {
+            if (!ttsHazir || tts == null || metin == null || metin.trim().isEmpty()) return false;
+            try {
+                // QUEUE_FLUSH: yeni cumle gelince eskiyi kes (us uste binmesin).
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    tts.speak(metin, TextToSpeech.QUEUE_FLUSH, null, "ford" + System.currentTimeMillis());
+                } else {
+                    tts.speak(metin, TextToSpeech.QUEUE_FLUSH, null);
+                }
+                return true;
+            } catch (Exception e) { return false; }
+        }
+        /** Panel, native ses motoru var mi diye kontrol eder. */
+        @JavascriptInterface public boolean hazirMi() { return ttsHazir; }
     }
 
     /** JS'ten cagrilir: paneldeki HER /api istegi bu kopru uzerinden Bluetooth'a gider. */
@@ -505,6 +553,7 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
         if (agGeri != null) { try { cm.unregisterNetworkCallback(agGeri); } catch (Exception ignored) {} }
         try { cm.bindProcessToNetwork(null); } catch (Exception ignored) {}
         if (bt != null) bt.kapat();
+        if (tts != null) { try { tts.stop(); tts.shutdown(); } catch (Exception ignored) {} }
         super.onDestroy();
     }
 }
