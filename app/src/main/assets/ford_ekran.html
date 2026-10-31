@@ -5268,90 +5268,10 @@ function motorEkranDuzelt(){
   }
   setInterval(fabDurum, 500);
 
-  // Pi TTS servis adresi (panel Pi'den yuklendiginde ayni host, 8090 portu).
-  function piTtsKok(){
-    try{
-      if(location.protocol.indexOf("http")===0 && location.hostname)
-        return location.protocol + "//" + location.hostname + ":8090/tts?q=";
-    }catch(e){}
-    return "";
-  }
-  // TEK kalici ses ogesi - otomatik-oynatma kilidi icin her seferinde ayni
-  // ogeyi kullaniriz (her cal'da yeni Audio yaratmak teypte bazen calmiyordu).
-  function sesOgesi(){
-    var a = document.getElementById("__fordSes");
-    if(!a){
-      a = document.createElement("audio");
-      a.id = "__fordSes"; a.preload = "auto";
-      a.setAttribute("playsinline",""); a.setAttribute("webkit-playsinline","");
-      (document.body||document.documentElement).appendChild(a);
-    }
-    return a;
-  }
-  // Verilen url'yi kalici ogede calar; olmazsa 'sonraki' fonksiyona duser.
-  function sesCalUrl(url, sonraki, t){
-    var a = sesOgesi();
-    a.muted = false; a.volume = 1.0;
-    a.onended = function(){ konusuyor=false; susKadar=Date.now()+400; };
-    a.onerror = function(){ if(sonraki) sonraki(t); };
-    try{ a.pause(); }catch(e){}
-    a.src = url;
-    try{ a.load(); }catch(e){}
-    var p = a.play();
-    if(p && p.catch) p.catch(function(){ if(sonraki) sonraki(t); });
-  }
-  function sesli(t){
-    if(t==null) return;
-    t = (""+t).trim();
-    var kok = piTtsKok();
-    if(t===""){ // ilk dokunus: otomatik-oynatma kilidini ac (neredeyse sessiz)
-      try{
-        var a = sesOgesi(); a.volume = 0;
-        a.src = (kok || "https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=tr&q=") + "%20";
-        var pw = a.play(); if(pw && pw.catch) pw.catch(function(){});
-      }catch(e){}
-      return;
-    }
-    konusuyor = true;
-    susKadar = Date.now() + Math.max(2500, t.length*120);  // cevap boyunca mikrofonu sustur (eko)
-    // 1) PI TTS: Pi'de konusma uretilir, teyp MEDYA kanalindan calar.
-    //    Teypte TTS motoru/internet GEREKMEZ (YouTube gibi medya sesi cikiyor).
-    if(kok){ sesCalUrl(kok + encodeURIComponent(t), sesliCevrimici, t); return; }
-    sesliCevrimici(t);
-  }
-
-  // 2) Pi TTS yoksa: internetten hazir ses (Google) - yine MEDYA kanalindan.
-  function sesliCevrimici(t){
-    var url = "https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&ttsspeed=1&tl=tr&q=" + encodeURIComponent(t);
-    sesCalUrl(url, sesliYedek, t);
-  }
-
-  // 3) Son care: APK'nin Android ses motoru, sonra tarayici TTS
-  //    (ikisi de teypte TTS motoru KURULU ise ses verir).
-  function sesliYedek(t){
-    try{
-      if(window.AndroidTTS && typeof AndroidTTS.konus==="function"){
-        var ok=false; try{ ok=AndroidTTS.konus(t); }catch(e){ ok=false; }
-        if(ok){
-          konusuyor=true;
-          var sure = Math.max(1200, t.length*95);
-          clearTimeout(window.__ttsZaman);
-          window.__ttsZaman = setTimeout(function(){ konusuyor=false; susKadar=Date.now()+400; }, sure);
-          return;
-        }
-      }
-      if(window.speechSynthesis){
-        window.speechSynthesis.cancel();
-        try{ window.speechSynthesis.resume(); }catch(e){}
-        var u = new SpeechSynthesisUtterance(t);
-        u.lang="tr-TR"; u.rate=1.0; u.volume=1.0;
-        konusuyor=true;
-        u.onend=function(){ konusuyor=false; susKadar=Date.now()+400; };
-        u.onerror=function(){ konusuyor=false; susKadar=Date.now()+400; };
-        window.speechSynthesis.speak(u);
-      } else { konusuyor=false; susKadar=Date.now()+400; }
-    }catch(e){ konusuyor=false; susKadar=Date.now()+400; }
-  }
+  // SESLI YANIT KAPALI (iptal edildi).
+  // Teyp seni duyar, komutu calistirir ve ekranda YAZILI onay verir; ama sesli
+  // konusma vermez. (Pi TTS / espeak / piper deneyleri kaldirildi.)
+  function sesli(t){ /* sessiz - yazili onay yeterli */ }
 
   function nrm(s){ return (s||"").toLocaleLowerCase("tr-TR").trim(); }
   function uyandirmaVar(m){ for(var i=0;i<UYANDIRMA.length;i++) if(m.indexOf(UYANDIRMA[i])!==-1) return true; return false; }
