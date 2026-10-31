@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Ford Sesli Test</title>
+<style>
+  :root{
+    --bg:#0b1726; --bg2:#10233b; --card:#16304f; --line:#1f4068;
+    --mavi:#38b6ff; --yesil:#39d98a; --sari:#ffcf5c; --kirmizi:#ff5c6c;
+    --yazi:#e8f1fb; --soluk:#8fb0d0;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; height:100%;}
+  body{
+    font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    background:linear-gradient(160deg,var(--bg),#071019 70%);
+    color:var(--yazi); min-height:100%;
+    padding:16px; padding-bottom:28px;
+  }
+  .ust{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+  .logo{font-weight:800; letter-spacing:1px; color:var(--mavi); font-size:20px;}
+  .ust .alt{color:var(--soluk); font-size:12px;}
+  .rozetler{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;}
+  .rozet{
+    background:var(--card); border:1px solid var(--line); border-radius:999px;
+    padding:7px 13px; font-size:13px; display:flex; align-items:center; gap:7px;
+  }
+  .nokta{width:9px; height:9px; border-radius:50%; background:#5a7496;}
+  .nokta.ok{background:var(--yesil); box-shadow:0 0 8px var(--yesil);}
+  .nokta.no{background:var(--kirmizi); box-shadow:0 0 8px var(--kirmizi);}
+  .nokta.bekle{background:var(--sari);}
+
+  .durumkutu{
+    background:var(--card); border:1px solid var(--line); border-radius:18px;
+    padding:22px; text-align:center; margin-bottom:14px; position:relative;
+    overflow:hidden; transition:.3s;
+  }
+  .durumkutu.aktif{border-color:var(--yesil); background:#123a2e;}
+  .buyuk{font-size:30px; font-weight:800; margin:4px 0 6px;}
+  .kucuk{color:var(--soluk); font-size:14px;}
+  .sayac{font-size:13px; color:var(--yesil); margin-top:8px; height:16px;}
+
+  .canli{
+    background:#0a1a2c; border:1px dashed var(--line);
+    border-radius:14px; padding:16px; min-height:70px; margin-bottom:14px;
+    font-size:22px; line-height:1.35;
+  }
+  .canli .ara{color:var(--soluk);}
+  .canli .son{color:var(--yazi); font-weight:600;}
+
+  .btn{
+    width:100%; border:0; border-radius:14px; padding:16px; font-size:17px;
+    font-weight:700; color:#06121f; background:var(--mavi); cursor:pointer;
+    margin-bottom:14px;
+  }
+  .btn.dur{background:var(--kirmizi); color:#fff;}
+  .btn:active{transform:scale(.99);}
+
+  .log{
+    background:var(--bg2); border:1px solid var(--line); border-radius:14px;
+    padding:10px 6px; max-height:38vh; overflow:auto;
+  }
+  .log h4{margin:4px 10px 8px; color:var(--soluk); font-size:12px; font-weight:600;
+    letter-spacing:.5px; text-transform:uppercase;}
+  .satir{
+    display:flex; align-items:center; gap:10px; padding:9px 10px;
+    border-top:1px solid #12243b; font-size:15px;
+  }
+  .satir .zaman{color:#5f7fa3; font-size:12px; min-width:62px;}
+  .satir .metin{flex:1;}
+  .etik{
+    font-size:12px; font-weight:700; padding:3px 9px; border-radius:999px;
+    white-space:nowrap;
+  }
+  .etik.komut{background:#123a2e; color:var(--yesil);}
+  .etik.uyan{background:#0e2f4d; color:var(--mavi);}
+  .etik.uyku{background:#2a2033; color:#b99adf;}
+  .ipucu{color:var(--soluk); font-size:12.5px; text-align:center; margin-top:14px; line-height:1.5;}
+  .hata{color:var(--kirmizi); font-size:13px; text-align:center; margin-top:8px; min-height:16px;}
+</style>
+</head>
+<body>
+  <div class="ust">
+    <span class="logo">FORD SESLİ</span>
+    <span class="alt">teyp testi · Google tanıma</span>
+  </div>
+
+  <div class="rozetler">
+    <div class="rozet"><span id="n_mik" class="nokta bekle"></span> Mikrofon</div>
+    <div class="rozet"><span id="n_tani" class="nokta bekle"></span> Tanıma</div>
+    <div class="rozet"><span id="n_ses" class="nokta bekle"></span> Seslendirme</div>
+    <div class="rozet"><span id="n_net" class="nokta bekle"></span> İnternet</div>
+  </div>
+
+  <div id="durumkutu" class="durumkutu">
+    <div id="durumBuyuk" class="buyuk">UYKUDA</div>
+    <div id="durumKucuk" class="kucuk">"Merhaba Ford" de, seni dinlesin</div>
+    <div id="sayac" class="sayac"></div>
+  </div>
+
+  <div id="canli" class="canli"><span class="ara">Mikrofon bekleniyor…</span></div>
+
+  <button id="btn" class="btn">● Dinlemeyi Başlat</button>
+
+  <div class="log">
+    <h4>Duyulanlar</h4>
+    <div id="logliste"></div>
+  </div>
+
+  <div class="hata" id="hata"></div>
+  <div class="ipucu">
+    Bu sayfa teybin <b>Chrome</b> tarayıcısında açılmalı ve mikrofon izni verilmeli.<br>
+    Hiçbir şeyi araca göndermez — sadece teybin seni duyup cevap verebildiğini test eder.
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- Uyandirma ve komut kaliplari (Pi'deki faz3 ile ayni mantik) ----
+  var UYANDIRMA = ["merhaba","selam","hey","ford","fort","for"];
+  // komut: [anahtar kelimeler...], soylenecek cevap
+  var KOMUTLAR = [
+    {ad:"KAPILARI AÇ",     nesne:["kapı","kapi"],  fiil:["aç","ac"],           cevap:"Kapıları açıyorum"},
+    {ad:"KAPILARI KİLİTLE",nesne:["kapı","kapi"],  fiil:["kilit","kapat"],     cevap:"Kapıları kilitliyorum"},
+    {ad:"CAMLARI AÇ",      nesne:["cam"],          fiil:["aç","ac"],           cevap:"Camları açıyorum"},
+    {ad:"CAMLARI KAPAT",   nesne:["cam"],          fiil:["kapat","kapa"],      cevap:"Camları kapatıyorum"},
+    {ad:"MOTORU ÇALIŞTIR", nesne:["motor"],        fiil:["çalış","calis","başlat"], cevap:"Motoru çalıştırıyorum"},
+    {ad:"MOTORU DURDUR",   nesne:["motor"],        fiil:["durdur","dur","kapat"], cevap:"Motoru durduruyorum"},
+    {ad:"IŞIKLARI AÇ",     nesne:["ışık","isik","far"], fiil:["aç","ac","yak"],cevap:"Işıkları açıyorum"},
+    {ad:"IŞIKLARI KAPAT",  nesne:["ışık","isik","far"], fiil:["kapat","söndür","sondur"], cevap:"Işıkları kapatıyorum"},
+    {ad:"BAGAJI AÇ",       nesne:["bagaj"],        fiil:["aç","ac"],           cevap:"Bagajı açıyorum"}
+  ];
+  var OTURUM_SN = 15;
+
+  // ---- Durum ----
+  var dinliyor = false, oturumBitis = 0, konusuyor = false, rec = null, sayacTimer = null;
+  var $ = function(id){return document.getElementById(id);};
+
+  function nokta(id, s){ var e=$(id); e.className = "nokta " + s; }
+  function hata(t){ $("hata").textContent = t || ""; }
+
+  // ---- Destek kontrolu ----
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  nokta("n_tani", SR ? "ok" : "no");
+  nokta("n_ses", window.speechSynthesis ? "ok" : "no");
+  nokta("n_net", navigator.onLine ? "ok" : "no");
+  window.addEventListener("online", function(){nokta("n_net","ok");});
+  window.addEventListener("offline", function(){nokta("n_net","no");});
+
+  if(!SR){
+    hata("Bu tarayıcı ses tanımayı desteklemiyor. Teybin Chrome'uyla aç, ya da Chrome'u güncelle.");
+  }
+
+  // ---- Seslendirme (TTS) ----
+  function sesli(t){
+    try{
+      if(!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(t);
+      u.lang = "tr-TR"; u.rate = 1.0; u.pitch = 1.0;
+      // Konusurken mikrofon kendi sesini duymasin
+      konusuyor = true;
+      u.onend = function(){ konusuyor = false; };
+      u.onerror = function(){ konusuyor = false; };
+      window.speechSynthesis.speak(u);
+    }catch(e){ konusuyor = false; }
+  }
+
+  // ---- Log ----
+  function logEkle(metin, etiket, sinif){
+    var d = new Date();
+    var z = ("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2)+":"+("0"+d.getSeconds()).slice(-2);
+    var row = document.createElement("div"); row.className="satir";
+    var h = '<span class="zaman">'+z+'</span><span class="metin">'+metin+'</span>';
+    if(etiket) h += '<span class="etik '+sinif+'">'+etiket+'</span>';
+    row.innerHTML = h;
+    var L = $("logliste");
+    L.insertBefore(row, L.firstChild);
+    while(L.children.length > 40) L.removeChild(L.lastChild);
+  }
+
+  // ---- Durum kutusu ----
+  function uyanikMi(){ return Date.now() < oturumBitis; }
+  function durumGuncelle(){
+    var k = $("durumkutu");
+    if(uyanikMi()){
+      k.classList.add("aktif");
+      $("durumBuyuk").textContent = "DİNLİYORUM";
+      $("durumKucuk").textContent = "Komutunu söyle";
+    }else{
+      k.classList.remove("aktif");
+      $("durumBuyuk").textContent = "UYKUDA";
+      $("durumKucuk").textContent = '"Merhaba Ford" de, seni dinlesin';
+      $("sayac").textContent = "";
+    }
+  }
+  function sayacBasla(){
+    if(sayacTimer) clearInterval(sayacTimer);
+    sayacTimer = setInterval(function(){
+      var kalan = Math.ceil((oturumBitis - Date.now())/1000);
+      if(kalan > 0 && uyanikMi()){
+        $("sayac").textContent = kalan + " sn açık";
+      }else{
+        $("sayac").textContent = "";
+        durumGuncelle();
+        clearInterval(sayacTimer); sayacTimer = null;
+      }
+    }, 250);
+  }
+
+  // ---- Eslestirme ----
+  function normalize(s){ return (s||"").toLocaleLowerCase("tr-TR").trim(); }
+  function icinde(metin, k){ return metin.indexOf(k) !== -1; }
+
+  function uyandirmaVar(metin){
+    for(var i=0;i<UYANDIRMA.length;i++){ if(icinde(metin, UYANDIRMA[i])) return true; }
+    return false;
+  }
+  function komutBul(metin){
+    for(var i=0;i<KOMUTLAR.length;i++){
+      var c = KOMUTLAR[i];
+      var n=false,f=false, j;
+      for(j=0;j<c.nesne.length;j++){ if(icinde(metin,c.nesne[j])){n=true;break;} }
+      for(j=0;j<c.fiil.length;j++){ if(icinde(metin,c.fiil[j])){f=true;break;} }
+      if(n && f) return c;
+    }
+    return null;
+  }
+
+  // ---- Tanima sonucunu isle ----
+  function islege(sonMetin){
+    var metin = normalize(sonMetin);
+    if(!metin) return;
+
+    // Uyaniksa once komut dene
+    if(uyanikMi()){
+      var c = komutBul(metin);
+      if(c){
+        logEkle(sonMetin, c.ad, "komut");
+        sesli(c.cevap);
+        oturumBitis = Date.now() + OTURUM_SN*1000; // oturumu tazele
+        sayacBasla(); durumGuncelle();
+        return;
+      }
+    }
+
+    // Uyandirma kelimesi var mi
+    if(uyandirmaVar(metin)){
+      var yeniUyandi = !uyanikMi();
+      oturumBitis = Date.now() + OTURUM_SN*1000;
+      // Uyandirma + komut ayni cumlede mi ("merhaba ford kapilari ac")
+      var c2 = komutBul(metin);
+      if(c2){
+        logEkle(sonMetin, c2.ad, "komut");
+        sesli(c2.cevap);
+      }else{
+        logEkle(sonMetin, "UYANDI", "uyan");
+        if(yeniUyandi) sesli("Buyur kaptan");
+      }
+      sayacBasla(); durumGuncelle();
+      return;
+    }
+
+    // Uyku modunda, uyandirma yok
+    logEkle(sonMetin, "uykuda", "uyku");
+  }
+
+  // ---- Tanima motoru ----
+  function tanimaKur(){
+    rec = new SR();
+    rec.lang = "tr-TR";
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+
+    rec.onstart = function(){ nokta("n_mik","ok"); hata(""); };
+    rec.onresult = function(ev){
+      var ara = "", son = "";
+      for(var i=ev.resultIndex; i<ev.results.length; i++){
+        var r = ev.results[i];
+        if(r.isFinal) son += r[0].transcript;
+        else ara += r[0].transcript;
+      }
+      $("canli").innerHTML =
+        (son ? '<span class="son">'+son+'</span> ' : '') +
+        (ara ? '<span class="ara">'+ara+'</span>' : '') ||
+        '<span class="ara">dinliyorum…</span>';
+      if(son && !konusuyor) islege(son);
+    };
+    rec.onerror = function(ev){
+      if(ev.error === "no-speech") return;           // normal, sus
+      if(ev.error === "aborted") return;
+      if(ev.error === "not-allowed" || ev.error === "service-not-allowed"){
+        nokta("n_mik","no");
+        hata("Mikrofon izni verilmedi. Tarayıcı ayarından bu siteye mikrofon izni ver.");
+        dinliyor = false; btnGuncelle();
+      }else if(ev.error === "network"){
+        nokta("n_net","no");
+        hata("İnternet yok — Google tanıması çalışmıyor. Teybin neti var mı?");
+      }else{
+        hata("Tanıma hatası: " + ev.error);
+      }
+    };
+    rec.onend = function(){
+      // Surekli dinleme: bitince yeniden basla
+      if(dinliyor){
+        try{ rec.start(); }
+        catch(e){ setTimeout(function(){ try{rec.start();}catch(e2){} }, 300); }
+      }else{
+        nokta("n_mik","bekle");
+      }
+    };
+  }
+
+  function btnGuncelle(){
+    var b = $("btn");
+    if(dinliyor){ b.textContent = "■ Dinlemeyi Durdur"; b.classList.add("dur"); }
+    else{ b.textContent = "● Dinlemeyi Başlat"; b.classList.remove("dur"); }
+  }
+
+  function basla(){
+    if(!SR){ hata("Tarayıcı ses tanımayı desteklemiyor."); return; }
+    if(!rec) tanimaKur();
+    dinliyor = true; btnGuncelle();
+    $("canli").innerHTML = '<span class="ara">dinliyorum…</span>';
+    try{ rec.start(); }
+    catch(e){ /* zaten calisiyor olabilir */ }
+    // Ilk dokunusta TTS'i acmak icin sessiz bir deneme (mobil kisiti)
+    sesli(" ");
+  }
+  function dur(){
+    dinliyor = false; btnGuncelle();
+    try{ rec && rec.stop(); }catch(e){}
+    nokta("n_mik","bekle");
+    durumGuncelle();
+  }
+
+  $("btn").addEventListener("click", function(){
+    if(dinliyor) dur(); else basla();
+  });
+
+  durumGuncelle();
+})();
+</script>
+</body>
+</html>
