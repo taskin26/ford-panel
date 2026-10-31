@@ -5268,29 +5268,55 @@ function motorEkranDuzelt(){
   }
   setInterval(fabDurum, 500);
 
-  function sesli(t){
-    if(!t) return;
+  // Pi TTS servis adresi (panel Pi'den yuklendiginde ayni host, 8090 portu).
+  function piTtsKok(){
     try{
-      // 1) CEVRIMICI SES: teybin internetini kullan, konusmayi hazir ses (mp3)
-      //    olarak indir ve MEDYA kanalindan cal. Teypte TTS motoru KURULU OLMASA
-      //    da calisir -- cunku medya sesi (YouTube gibi) zaten cikiyor.
-      //    WebView'in kendi TTS'i teypte ses vermiyordu; bu yol o soruna takilmaz.
-      konusuyor = true;
-      susKadar = Date.now() + Math.max(2500, t.length*120);  // cevap boyunca mikrofonu sustur (eko)
-      var url = "https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&ttsspeed=1&tl=tr&q="
-                + encodeURIComponent(t);
-      try{ if(window.__sesCal){ window.__sesCal.pause(); window.__sesCal.src=""; } }catch(e){}
-      var a = new Audio(url);
-      window.__sesCal = a;
-      a.onended = function(){ konusuyor=false; susKadar=Date.now()+400; };
-      a.onerror = function(){ sesliYedek(t); };     // internet yoksa yedege dus
-      var p = a.play();
-      if(p && p.catch) p.catch(function(){ sesliYedek(t); });
+      if(location.protocol.indexOf("http")===0 && location.hostname)
+        return location.protocol + "//" + location.hostname + ":8090/tts?q=";
+    }catch(e){}
+    return "";
+  }
+  function sesCal(src, t){
+    try{ if(window.__sesCal){ window.__sesCal.pause(); window.__sesCal.src=""; } }catch(e){}
+    var a = new Audio(src); window.__sesCal = a;
+    a.onended = function(){ konusuyor=false; susKadar=Date.now()+400; };
+    a.onerror = function(){ if(a.__sonraki) a.__sonraki(t); };
+    return a;
+  }
+  function sesli(t){
+    if(t==null) return;
+    t = (""+t).trim();
+    var kok = piTtsKok();
+    if(t===""){ // ilk dokunus: otomatik-oynatma kilidini ac (sessiz)
+      try{ var w=new Audio((kok||"https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=tr&q=")+"%20");
+           w.volume=0; var pw=w.play(); if(pw&&pw.catch) pw.catch(function(){}); }catch(e){}
+      return;
+    }
+    konusuyor = true;
+    susKadar = Date.now() + Math.max(2500, t.length*120);  // cevap boyunca mikrofonu sustur (eko)
+    // 1) PI TTS: espeak-ng Pi'de konusmayi uretir, teyp MEDYA kanalindan calar.
+    //    Teypte TTS motoru/internet GEREKMEZ (YouTube gibi medya sesi zaten cikiyor).
+    if(kok){
+      var a = sesCal(kok + encodeURIComponent(t), t);
+      a.__sonraki = sesliCevrimici;   // Pi TTS yoksa cevrimiciye dus
+      var p = a.play(); if(p && p.catch) p.catch(function(){ sesliCevrimici(t); });
+      return;
+    }
+    sesliCevrimici(t);
+  }
+
+  // 2) Pi TTS yoksa: internetten hazir ses (Google) - yine MEDYA kanalindan.
+  function sesliCevrimici(t){
+    try{
+      var url = "https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&ttsspeed=1&tl=tr&q=" + encodeURIComponent(t);
+      var a = sesCal(url, t);
+      a.__sonraki = sesliYedek;       // internet yoksa motora dus
+      var p = a.play(); if(p && p.catch) p.catch(function(){ sesliYedek(t); });
     }catch(e){ sesliYedek(t); }
   }
 
-  // Internet yoksa: once APK'nin Android ses motoru, sonra tarayici TTS
-  // (ikisi de teypte TTS motoru KURULU ise ses verir).
+  // 3) Son care: APK'nin Android ses motoru, sonra tarayici TTS
+  //    (ikisi de teypte TTS motoru KURULU ise ses verir).
   function sesliYedek(t){
     try{
       if(window.AndroidTTS && typeof AndroidTTS.konus==="function"){
