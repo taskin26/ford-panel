@@ -2,6 +2,8 @@ name: APK derle
 on:
   push:
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,8 +20,16 @@ jobs:
           gradle-version: '8.5'
       - name: APK derle
         run: gradle assembleDebug --no-daemon --stacktrace
-      - name: APK yukle
+      - name: APK yukle (artifact)
         uses: actions/upload-artifact@v4
         with:
           name: FORD-app-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+      - name: APK'yi herkese acik Release'e koy (giris istemez)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view apk >/dev/null 2>&1 || \
+            gh release create apk --title "FORD APK (son surum)" \
+              --notes "Teype/taba giris yapmadan kurmak icin dogrudan indirme." --latest
+          gh release upload apk app/build/outputs/apk/debug/app-debug.apk --clobber
