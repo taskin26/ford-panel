@@ -5176,6 +5176,7 @@ function motorEkranDuzelt(){
   var OTURUM_MS = 15000;
 
   var dinliyor=false, oturumBitis=0, konusuyor=false, rec=null, susKadar=0;
+  var sonKomutAd="", sonKomutZaman=0;
 
   function toastGoster(html, hata, kalici){
     toast.innerHTML = html;
@@ -5218,11 +5219,21 @@ function motorEkranDuzelt(){
   }
 
   function komutYap(c, ham){
+    var simdi = Date.now();
+    // EKO KORUMASI 1: ayni komut 6 sn icinde tekrar gelirse yok say.
+    // (Arac "kapilar acildi" der, mikrofon duyar, "acildi"->"ac" diye
+    //  komutu TEKRAR tetikler, sonsuz dongu olur. Bunu keser.)
+    if(c.ad === sonKomutAd && simdi - sonKomutZaman < 6000) return;
+    sonKomutAd = c.ad; sonKomutZaman = simdi;
     // Panelin kendi fonksiyonu - butona basmakla AYNI
     try{ if(typeof komutGonder==="function") komutGonder(c.ad); }catch(e){}
     toastGoster('🎤 <b>'+c.c+'</b><br><span style="color:#8fb0d0;font-size:13px">'+ham+'</span>');
     sesli(c.c);
-    oturumBitis = Date.now()+OTURUM_MS;
+    oturumBitis = simdi+OTURUM_MS;
+    // EKO KORUMASI 2: komuttan sonra cevap (teyp TTS'i VEYA Pi hoparloru)
+    // mikrofona geri gelip komutu yeniden tetiklemesin diye 3.5 sn
+    // dinlemeyi yok say.
+    susKadar = simdi + 3500;
   }
 
   function isle(ham){
