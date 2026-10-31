@@ -5269,32 +5269,51 @@ function motorEkranDuzelt(){
   setInterval(fabDurum, 500);
 
   function sesli(t){
+    if(!t) return;
     try{
-      // 1) TEYP: Android'in kendi ses motoru (APK koprusu) - arac kolonundan NET cikar.
-      //    WebView'in speechSynthesis'i teypte ses CIKARMIYOR, bu yuzden once bunu dene.
+      // 1) CEVRIMICI SES: teybin internetini kullan, konusmayi hazir ses (mp3)
+      //    olarak indir ve MEDYA kanalindan cal. Teypte TTS motoru KURULU OLMASA
+      //    da calisir -- cunku medya sesi (YouTube gibi) zaten cikiyor.
+      //    WebView'in kendi TTS'i teypte ses vermiyordu; bu yol o soruna takilmaz.
+      konusuyor = true;
+      susKadar = Date.now() + Math.max(2500, t.length*120);  // cevap boyunca mikrofonu sustur (eko)
+      var url = "https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&ttsspeed=1&tl=tr&q="
+                + encodeURIComponent(t);
+      try{ if(window.__sesCal){ window.__sesCal.pause(); window.__sesCal.src=""; } }catch(e){}
+      var a = new Audio(url);
+      window.__sesCal = a;
+      a.onended = function(){ konusuyor=false; susKadar=Date.now()+400; };
+      a.onerror = function(){ sesliYedek(t); };     // internet yoksa yedege dus
+      var p = a.play();
+      if(p && p.catch) p.catch(function(){ sesliYedek(t); });
+    }catch(e){ sesliYedek(t); }
+  }
+
+  // Internet yoksa: once APK'nin Android ses motoru, sonra tarayici TTS
+  // (ikisi de teypte TTS motoru KURULU ise ses verir).
+  function sesliYedek(t){
+    try{
       if(window.AndroidTTS && typeof AndroidTTS.konus==="function"){
-        var ok=false;
-        try{ ok = AndroidTTS.konus(t); }catch(e){ ok=false; }
+        var ok=false; try{ ok=AndroidTTS.konus(t); }catch(e){ ok=false; }
         if(ok){
           konusuyor=true;
-          // Native motorda bitis geri cagrisi yok -> sureyi tahmin et, eko korumasi icin sustur.
-          var sure = Math.max(1200, (t?t.length:0)*95);
+          var sure = Math.max(1200, t.length*95);
           clearTimeout(window.__ttsZaman);
           window.__ttsZaman = setTimeout(function(){ konusuyor=false; susKadar=Date.now()+400; }, sure);
           return;
         }
       }
-      // 2) YEDEK: tarayici TTS (Pi panelinde / normal Chrome'da ses buradan cikar).
-      if(!window.speechSynthesis) return;
-      window.speechSynthesis.cancel();
-      try{ window.speechSynthesis.resume(); }catch(e){}  // Chrome duraklama hatasi
-      var u = new SpeechSynthesisUtterance(t);
-      u.lang="tr-TR"; u.rate=1.0; u.volume=1.0;
-      konusuyor=true;
-      u.onend=function(){ konusuyor=false; susKadar=Date.now()+400; };
-      u.onerror=function(){ konusuyor=false; susKadar=Date.now()+400; };
-      window.speechSynthesis.speak(u);
-    }catch(e){ konusuyor=false; }
+      if(window.speechSynthesis){
+        window.speechSynthesis.cancel();
+        try{ window.speechSynthesis.resume(); }catch(e){}
+        var u = new SpeechSynthesisUtterance(t);
+        u.lang="tr-TR"; u.rate=1.0; u.volume=1.0;
+        konusuyor=true;
+        u.onend=function(){ konusuyor=false; susKadar=Date.now()+400; };
+        u.onerror=function(){ konusuyor=false; susKadar=Date.now()+400; };
+        window.speechSynthesis.speak(u);
+      } else { konusuyor=false; susKadar=Date.now()+400; }
+    }catch(e){ konusuyor=false; susKadar=Date.now()+400; }
   }
 
   function nrm(s){ return (s||"").toLocaleLowerCase("tr-TR").trim(); }
