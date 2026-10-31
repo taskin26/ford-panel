@@ -19,6 +19,7 @@ import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.JsPromptResult;
 import android.webkit.JsResult;
+import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
@@ -86,6 +87,9 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
         btBtn.setOnClickListener(v -> btBaglan());
         homeBtn.setOnClickListener(v -> anaEkranaDon());
 
+        // Sesli komut icin mikrofon izni (bir kereye mahsus sorulur).
+        mikIzinIste();
+
         // Panel HEMEN (gomulu) acilir -> her zaman gorunur.
         web.loadUrl(YEREL_URL);
         durumYaz("Baglanti araniyor...");
@@ -121,6 +125,20 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
         // WebView bunlari kendiliginden gostermez -> komut sessizce iptal olur.
         // Native dialoglarla isleyelim ki onay isteyen komutlar (motor, sistem...) calissin.
         web.setWebChromeClient(new WebChromeClient() {
+            // Sesli komut: panel mikrofon isteyince WebView'e izni ver.
+            @Override public void onPermissionRequest(final PermissionRequest request) {
+                runOnUiThread(() -> {
+                    try {
+                        for (String r : request.getResources()) {
+                            if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r)) {
+                                request.grant(new String[]{ PermissionRequest.RESOURCE_AUDIO_CAPTURE });
+                                return;
+                            }
+                        }
+                        request.deny();
+                    } catch (Exception e) { request.deny(); }
+                });
+            }
             @Override public boolean onJsConfirm(WebView v, String url, String mesaj, final JsResult sonuc) {
                 new AlertDialog.Builder(MainActivity.this)
                         .setMessage(mesaj)
@@ -419,6 +437,16 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
 
     // ---- izinler ----
     private static final int IZIN_BT = 42;
+    private static final int IZIN_MIK = 43;
+    private void mikIzinIste() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                    && checkSelfPermission(Manifest.permission.RECORD_AUDIO)
+                       != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{ Manifest.permission.RECORD_AUDIO }, IZIN_MIK);
+            }
+        } catch (Exception e) { /* yoksay */ }
+    }
     private boolean btIzinVar() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true;
         return checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED;

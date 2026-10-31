@@ -5127,4 +5127,172 @@ function motorEkranDuzelt(){
   }).catch(function(){});
 }
 </script>
+<!-- ============ SESLI KOMUT (teyp · Google tanima) ============ -->
+<style>
+  #sesliFab{position:fixed; right:16px; bottom:84px; z-index:9999;
+    width:60px; height:60px; border-radius:50%; border:none; cursor:pointer;
+    background:#2a3647; color:#cfe0f5; font-size:26px; box-shadow:0 6px 18px rgba(0,0,0,.45);
+    display:flex; align-items:center; justify-content:center; transition:.25s;}
+  #sesliFab.dinliyor{background:#1769c4; color:#fff;}
+  #sesliFab.uyanik{background:#1a9d5a; color:#fff; box-shadow:0 0 0 0 rgba(26,157,90,.6); animation:sesliNabiz 1.4s infinite;}
+  @keyframes sesliNabiz{0%{box-shadow:0 0 0 0 rgba(26,157,90,.55);}70%{box-shadow:0 0 0 16px rgba(26,157,90,0);}100%{box-shadow:0 0 0 0 rgba(26,157,90,0);}}
+  #sesliToast{position:fixed; right:16px; bottom:152px; z-index:9999; max-width:72vw;
+    background:rgba(16,32,52,.96); color:#e8f1fb; border:1px solid #27476c; border-radius:12px;
+    padding:10px 14px; font-size:15px; box-shadow:0 6px 18px rgba(0,0,0,.4);
+    opacity:0; transform:translateY(8px); transition:.25s; pointer-events:none;}
+  #sesliToast.gor{opacity:1; transform:translateY(0);}
+  #sesliToast b{color:#5bc08a;}
+  #sesliToast .err{color:#ff6b7a;}
+</style>
+<button id="sesliFab" title="Sesli komut">🎤</button>
+<div id="sesliToast"></div>
+<script>
+(function(){
+  "use strict";
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var fab = document.getElementById("sesliFab");
+  var toast = document.getElementById("sesliToast");
+  if(!SR){ fab.title = "Bu tarayici ses tanimayi desteklemiyor"; fab.style.opacity=.4; }
+
+  var UYANDIRMA = ["merhaba","selam","hey","ford","fort","for"];
+  // Spesifik camlar ONCE gelmeli (yoksa genel "cam" yakalar)
+  var KOMUTLAR = [
+    {ad:"SURUCU_CAMI_AC",   n:["sürücü cam","surucu cam","sol cam","şoför cam","sofor cam","soldaki cam"], f:["aç","ac","açıl","indir"], c:"Sürücü camını açıyorum"},
+    {ad:"SURUCU_CAMI_KAPAT",n:["sürücü cam","surucu cam","sol cam","şoför cam","sofor cam","soldaki cam"], f:["kapat","kapa","kaldır","kaldir"], c:"Sürücü camını kapatıyorum"},
+    {ad:"YOLCU_CAMI_AC",    n:["yolcu cam","sağ cam","sag cam","yan cam","sağdaki cam"], f:["aç","ac","açıl","indir"], c:"Yolcu camını açıyorum"},
+    {ad:"YOLCU_CAMI_KAPAT", n:["yolcu cam","sağ cam","sag cam","yan cam","sağdaki cam"], f:["kapat","kapa","kaldır","kaldir"], c:"Yolcu camını kapatıyorum"},
+    {ad:"ON_CAMLAR_AC",     n:["cam"], f:["aç","ac","açıl","indir"], c:"Camları açıyorum"},
+    {ad:"ON_CAMLAR_KAPAT",  n:["cam"], f:["kapat","kapa","kaldır","kaldir"], c:"Camları kapatıyorum"},
+    {ad:"KAPILARI_AC",      n:["kapı","kapi","kapılar","kapilar"], f:["aç","ac","açıl","acil"], c:"Kapıları açıyorum"},
+    {ad:"KAPILARI_KILITLE", n:["kapı","kapi","kapılar","kapilar"], f:["kilitle","kilit","kapat","kapa"], c:"Kapıları kilitliyorum"},
+    {ad:"ISIKLARI_AC",      n:["ışık","isik","far","ışıklar","isiklar"], f:["aç","ac","yak"], c:"Işıkları açıyorum"},
+    {ad:"ISIKLARI_KAPAT",   n:["ışık","isik","far","ışıklar","isiklar"], f:["kapat","söndür","sondur","kapa"], c:"Işıkları kapatıyorum"},
+    {ad:"MOTORU_CALISTIR",  n:["motor","araç","arac","araba"], f:["çalıştır","calistir","başlat","baslat","çalış","calis"], c:"Motoru çalıştırıyorum"},
+    {ad:"MOTORU_DURDUR",    n:["motor"], f:["durdur","dur","kapat","söndür","sondur"], c:"Motoru durduruyorum"},
+    {ad:"BAGAJI_AC",        n:["bagaj"], f:["aç","ac"], c:"Bagajı açıyorum"},
+    {ad:"ARAC_DURUMU",      n:["araç durum","arac durum","durum raporu","nasılsın"], f:[], c:"Araç durumu"},
+    {ad:"ARACIMI_BUL",      n:["aracımı bul","aracimi bul","arabamı bul","neredesin","korna çal"], f:[], c:"Aracı buluyorum"}
+  ];
+  var OTURUM_MS = 15000;
+
+  var dinliyor=false, oturumBitis=0, konusuyor=false, rec=null, susKadar=0;
+
+  function toastGoster(html, hata, kalici){
+    toast.innerHTML = html;
+    toast.classList.add("gor");
+    if(toast._t) clearTimeout(toast._t);
+    if(!kalici) toast._t = setTimeout(function(){ toast.classList.remove("gor"); }, 3200);
+  }
+  function uyanikMi(){ return Date.now() < oturumBitis; }
+  function fabDurum(){
+    fab.classList.remove("dinliyor","uyanik");
+    if(!dinliyor) return;
+    fab.classList.add(uyanikMi() ? "uyanik" : "dinliyor");
+  }
+  setInterval(fabDurum, 500);
+
+  function sesli(t){
+    try{
+      if(!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(t);
+      u.lang="tr-TR"; u.rate=1.0;
+      konusuyor=true;
+      u.onend=function(){ konusuyor=false; susKadar=Date.now()+400; };
+      u.onerror=function(){ konusuyor=false; susKadar=Date.now()+400; };
+      window.speechSynthesis.speak(u);
+    }catch(e){ konusuyor=false; }
+  }
+
+  function nrm(s){ return (s||"").toLocaleLowerCase("tr-TR").trim(); }
+  function uyandirmaVar(m){ for(var i=0;i<UYANDIRMA.length;i++) if(m.indexOf(UYANDIRMA[i])!==-1) return true; return false; }
+  function komutBul(m){
+    for(var i=0;i<KOMUTLAR.length;i++){
+      var c=KOMUTLAR[i], n=false, f=(c.f.length===0), j;
+      for(j=0;j<c.n.length;j++){ if(m.indexOf(c.n[j])!==-1){n=true;break;} }
+      if(!n) continue;
+      if(c.f.length){ for(j=0;j<c.f.length;j++){ if(m.indexOf(c.f[j])!==-1){f=true;break;} } }
+      if(n&&f) return c;
+    }
+    return null;
+  }
+
+  function komutYap(c, ham){
+    // Panelin kendi fonksiyonu - butona basmakla AYNI
+    try{ if(typeof komutGonder==="function") komutGonder(c.ad); }catch(e){}
+    toastGoster('🎤 <b>'+c.c+'</b><br><span style="color:#8fb0d0;font-size:13px">'+ham+'</span>');
+    sesli(c.c);
+    oturumBitis = Date.now()+OTURUM_MS;
+  }
+
+  function isle(ham){
+    var m = nrm(ham);
+    if(!m) return;
+    if(Date.now() < susKadar) return;   // kendi sesini duymasin
+
+    if(uyanikMi()){
+      var c = komutBul(m);
+      if(c){ komutYap(c, ham); return; }
+    }
+    if(uyandirmaVar(m)){
+      var yeni = !uyanikMi();
+      oturumBitis = Date.now()+OTURUM_MS;
+      var c2 = komutBul(m);
+      if(c2){ komutYap(c2, ham); }
+      else{
+        toastGoster('🎤 <b>Buyur kaptan</b>');
+        if(yeni) sesli("Buyur kaptan");
+      }
+      return;
+    }
+    // uyku - sessizce gec (istersen burada log tutulabilir)
+  }
+
+  function kur(){
+    rec = new SR();
+    rec.lang="tr-TR"; rec.continuous=true; rec.interimResults=true; rec.maxAlternatives=1;
+    rec.onresult=function(ev){
+      var son="";
+      for(var i=ev.resultIndex;i<ev.results.length;i++){ if(ev.results[i].isFinal) son+=ev.results[i][0].transcript; }
+      if(son && !konusuyor) isle(son);
+    };
+    rec.onerror=function(ev){
+      if(ev.error==="no-speech"||ev.error==="aborted") return;
+      if(ev.error==="not-allowed"||ev.error==="service-not-allowed"){
+        dinliyor=false; fabDurum();
+        toastGoster('<span class="err">Mikrofon izni yok. Teyp ayarından izin ver.</span>', true, true);
+      }else if(ev.error==="network"){
+        toastGoster('<span class="err">İnternet yok — tanıma çalışmıyor.</span>', true);
+      }
+    };
+    rec.onend=function(){ if(dinliyor){ try{rec.start();}catch(e){ setTimeout(function(){try{rec.start();}catch(e2){}},300);} } };
+  }
+
+  function basla(){
+    if(!SR){ toastGoster('<span class="err">Tarayıcı ses tanımayı desteklemiyor.</span>', true, true); return; }
+    if(!rec) kur();
+    dinliyor=true; fabDurum();
+    try{ rec.start(); }catch(e){}
+    sesli(" ");  // ilk dokunusta TTS kilidini ac
+    try{ localStorage.setItem("fordSesli","1"); }catch(e){}
+    toastGoster('🎤 Dinleniyor — "Merhaba Ford" de');
+  }
+  function dur(){
+    dinliyor=false; fabDurum();
+    try{ rec && rec.stop(); }catch(e){}
+    try{ localStorage.setItem("fordSesli","0"); }catch(e){}
+    toastGoster('Sesli komut kapatıldı');
+  }
+  fab.addEventListener("click", function(){ if(dinliyor) dur(); else basla(); });
+
+  // En son acik birakildiysa, ilk dokunuşta otomatik baslasin diye hatirla
+  // (Mikrofon icin kullanici hareketi gerekiyor; o yuzden otomatik baslatmiyoruz,
+  //  sadece FAB rengi/ipucu ile hatirlatiyoruz.)
+  try{
+    if(localStorage.getItem("fordSesli")==="1"){
+      fab.title="Sesli komutu açmak için dokun";
+    }
+  }catch(e){}
+})();
+</script>
 </body></html>
