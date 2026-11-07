@@ -26,18 +26,8 @@ public class BootReceiver extends BroadcastReceiver {
                 && !act.equals("com.htc.intent.action.QUICKBOOT_POWERON")) {
             return;
         }
-        // 1) Uyku/uyanma takibi için kalıcı servisi ayağa kaldır.
-        try {
-            Intent s = new Intent(context, ArkaHizmet.class);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(s);
-            } else {
-                context.startService(s);
-            }
-        } catch (Exception e) {
-            // yoksay
-        }
-        // 2) Soğuk açılışta paneli de doğrudan öne getir.
+        // Soğuk açılışta paneli doğrudan öne getir (HOME ayarı da bunu kapsar,
+        // bu ek bir güvence). Uyku-uyanma zaten HOME ile çözülür.
         try {
             Intent i = new Intent(context, MainActivity.class);
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
