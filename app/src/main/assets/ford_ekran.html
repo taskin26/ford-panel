@@ -1288,6 +1288,16 @@ input[type=range].sldr::-webkit-slider-thumb{-webkit-appearance:none;width:17px;
             <div class="s-row"><div class="sr-l"><span class="sr-ic">🌡️</span><div><div class="sr-lbl">Hedef Sıcaklık</div></div></div><span class="badge blue">22 °C</span></div>
             <div class="s-row"><div class="sr-l"><span class="sr-ic">❄️</span><div><div class="sr-lbl">Otomatik Başlat</div></div></div><div class="toggle on" data-key="t_otomatik_baslat" onclick="toggleBas(this)"><div class="t-track"></div><div class="t-thumb"></div></div></div>
           </div>
+          <style>
+            #isitmaGunler .gun-chip{padding:6px 10px;border-radius:9px;border:1px solid rgba(255,255,255,.18);cursor:pointer;font-size:12px;user-select:none;opacity:.5;}
+            #isitmaGunler .gun-chip.on{opacity:1;background:#2e7d5b;border-color:#2e7d5b;color:#fff;}
+          </style>
+          <div class="s-group" style="margin-top:10px">
+            <div class="s-row"><div class="sr-l"><span class="sr-ic">🔥</span><div><div class="sr-lbl">Zamanlı Isıtma</div><div class="sr-desc">Ayarlı saatte motoru çalıştırır (ön ısıtma)</div></div></div><div class="toggle" id="isitmaAktif" onclick="this.classList.toggle('on')"><div class="t-track"></div><div class="t-thumb"></div></div></div>
+            <div class="s-row"><div class="sr-l"><span class="sr-ic">⏰</span><div><div class="sr-lbl">Saat</div></div></div><input type="time" id="isitmaSaat" class="s-sel" value="07:30" style="min-width:120px"></div>
+            <div class="s-row" style="align-items:flex-start"><div class="sr-l"><span class="sr-ic">📅</span><div><div class="sr-lbl">Günler</div></div></div><div id="isitmaGunler" style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end"></div></div>
+            <div class="s-row" style="justify-content:flex-end"><button class="s-btn s-btn-p" onclick="isitmaKaydet()">Kaydet</button></div>
+          </div>
         </div>
         <div class="sub-sec" id="st-muzik">
           <div class="s-group">
@@ -2058,6 +2068,7 @@ function showSPanel(id,el){
   if(id === 'arac' && typeof eySor === 'function') eySor();
   if(id === 'arac' && typeof srYukle === 'function') srYukle();
   if(id === 'arac' && typeof kbYukle === 'function') kbYukle();
+  if(id === 'arac' && typeof isitmaYukle === 'function') isitmaYukle();
 }
 function showSubTab(btn,id){
   document.querySelectorAll('.sub-tab').forEach(b=>b.classList.remove('active'));
@@ -2675,6 +2686,43 @@ function piAyarYolla(k, d, hemen){
 var _ynSifre=null;
 function _ynK(s){return (s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function _ynPost(u,o){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(o||{})}).then(function(r){return r.json();});}
+
+/* ===== ZAMANLI ISITMA (panelden saat ayarli on isitma) ===== */
+var _ISITMA_GUN_AD = ['Pzt','Sal','Çar','Per','Cum','Cmt','Paz']; // isoweekday 1..7
+function isitmaGunlerCiz(sec){
+  var c=document.getElementById('isitmaGunler'); if(!c)return;
+  sec=sec||[]; c.innerHTML='';
+  _ISITMA_GUN_AD.forEach(function(ad,i){
+    var g=i+1, s=document.createElement('span');
+    s.className='gun-chip'+(sec.indexOf(g)>=0?' on':'');
+    s.textContent=ad; s.setAttribute('data-gun',g);
+    s.onclick=function(){ s.classList.toggle('on'); };
+    c.appendChild(s);
+  });
+}
+function isitmaYukle(){
+  fetch('/api/isitma').then(function(r){return r.ok?r.json():null;}).then(function(d){
+    var a=(d&&d.ayar)||{aktif:false,saat:'07:30',gunler:[1,2,3,4,5]};
+    var t=document.getElementById('isitmaAktif'); if(t)t.classList.toggle('on',!!a.aktif);
+    var s=document.getElementById('isitmaSaat'); if(s&&a.saat)s.value=a.saat;
+    isitmaGunlerCiz(a.gunler&&a.gunler.length?a.gunler:[1,2,3,4,5]);
+  }).catch(function(){ isitmaGunlerCiz([1,2,3,4,5]); });
+}
+function isitmaKaydet(){
+  var aktif=document.getElementById('isitmaAktif').classList.contains('on');
+  var saat=(document.getElementById('isitmaSaat').value||'').slice(0,5);
+  var gunler=[].slice.call(document.querySelectorAll('#isitmaGunler .gun-chip.on'))
+               .map(function(e){return parseInt(e.getAttribute('data-gun'),10);});
+  if(aktif && !saat){ bildir('Önce saat seç'); return; }
+  if(aktif && gunler.length===0){ bildir('En az bir gün seç'); return; }
+  var govde={aktif:aktif,saat:saat,gunler:gunler};
+  if(_ynSifre) govde.sifre=_ynSifre;
+  _ynPost('/api/isitma',govde).then(function(d){
+    if(d&&d.ok){ bildir(aktif?('Isıtma kuruldu · '+saat):'Zamanlı ısıtma kapatıldı'); }
+    else if(d&&d.hata==='sifre yanlis'){ _ynSifre=null; bildir('Yönetici girişi gerekli — Kullanıcılar sekmesinden gir'); }
+    else { bildir((d&&d.hata)||'Kaydedilemedi'); }
+  }).catch(function(){ bildir('Bağlantı hatası'); });
+}
 function ynYenile(_t){ /* FORD GUVENLIK BT */
   fetch('/api/yonetici/durum').then(function(r){return r.json();}).then(function(d){
     var k=document.getElementById('yn-kutu'); if(!k)return;
