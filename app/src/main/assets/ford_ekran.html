@@ -1294,7 +1294,8 @@ input[type=range].sldr::-webkit-slider-thumb{-webkit-appearance:none;width:17px;
           </style>
           <div class="s-group" style="margin-top:10px">
             <div class="s-row"><div class="sr-l"><span class="sr-ic">🔥</span><div><div class="sr-lbl">Zamanlı Isıtma</div><div class="sr-desc">Ayarlı saatte motoru çalıştırır (ön ısıtma)</div></div></div><div class="toggle" id="isitmaAktif" onclick="this.classList.toggle('on')"><div class="t-track"></div><div class="t-thumb"></div></div></div>
-            <div class="s-row"><div class="sr-l"><span class="sr-ic">⏰</span><div><div class="sr-lbl">Saat</div></div></div><input type="time" id="isitmaSaat" class="s-sel" value="07:30" style="min-width:120px"></div>
+            <div class="s-row"><div class="sr-l"><span class="sr-ic">🌅</span><div><div class="sr-lbl">Sabah</div></div></div><div style="display:flex;align-items:center;gap:10px"><input type="time" id="isitmaSabahSaat" class="s-sel" value="08:30" style="min-width:110px"><div class="toggle on" id="isitmaSabahAktif" onclick="this.classList.toggle('on')"><div class="t-track"></div><div class="t-thumb"></div></div></div></div>
+            <div class="s-row"><div class="sr-l"><span class="sr-ic">🌆</span><div><div class="sr-lbl">Akşam</div></div></div><div style="display:flex;align-items:center;gap:10px"><input type="time" id="isitmaAksamSaat" class="s-sel" value="18:30" style="min-width:110px"><div class="toggle on" id="isitmaAksamAktif" onclick="this.classList.toggle('on')"><div class="t-track"></div><div class="t-thumb"></div></div></div></div>
             <div class="s-row" style="align-items:flex-start"><div class="sr-l"><span class="sr-ic">📅</span><div><div class="sr-lbl">Günler</div></div></div><div id="isitmaGunler" style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end"></div></div>
             <div class="s-row"><div class="sr-l"><span class="sr-ic">🔒</span><div><div class="sr-lbl">Kilit gecikmesi</div><div class="sr-desc">Motor çalıştıktan kaç sn sonra kilitlensin</div></div></div><input type="number" id="isitmaBekle" class="s-sel" min="2" max="40" value="8" style="min-width:90px"></div>
             <div class="s-row" style="justify-content:flex-end"><button class="s-btn s-btn-p" onclick="isitmaKaydet()">Kaydet</button></div>
@@ -2703,26 +2704,39 @@ function isitmaGunlerCiz(sec){
 }
 function isitmaYukle(){
   fetch('/api/isitma').then(function(r){return r.ok?r.json():null;}).then(function(d){
-    var a=(d&&d.ayar)||{aktif:false,saat:'07:30',gunler:[1,2,3,4,5]};
+    var a=(d&&d.ayar)||{aktif:false,gunler:[1,2,3,4,5]};
     var t=document.getElementById('isitmaAktif'); if(t)t.classList.toggle('on',!!a.aktif);
-    var s=document.getElementById('isitmaSaat'); if(s&&a.saat)s.value=a.saat;
+    var ss=document.getElementById('isitmaSabahSaat'); if(ss&&a.sabah_saat)ss.value=a.sabah_saat;
+    var sa=document.getElementById('isitmaSabahAktif'); if(sa)sa.classList.toggle('on',a.sabah_aktif!==false);
+    var xs=document.getElementById('isitmaAksamSaat'); if(xs&&a.aksam_saat)xs.value=a.aksam_saat;
+    var xa=document.getElementById('isitmaAksamAktif'); if(xa)xa.classList.toggle('on',!!a.aksam_aktif);
     var b=document.getElementById('isitmaBekle'); if(b&&a.kilit_bekle)b.value=a.kilit_bekle;
     isitmaGunlerCiz(a.gunler&&a.gunler.length?a.gunler:[1,2,3,4,5]);
   }).catch(function(){ isitmaGunlerCiz([1,2,3,4,5]); });
 }
 function isitmaKaydet(){
   var aktif=document.getElementById('isitmaAktif').classList.contains('on');
-  var saat=(document.getElementById('isitmaSaat').value||'').slice(0,5);
+  var sabahAktif=document.getElementById('isitmaSabahAktif').classList.contains('on');
+  var sabahSaat=(document.getElementById('isitmaSabahSaat').value||'').slice(0,5);
+  var aksamAktif=document.getElementById('isitmaAksamAktif').classList.contains('on');
+  var aksamSaat=(document.getElementById('isitmaAksamSaat').value||'').slice(0,5);
   var gunler=[].slice.call(document.querySelectorAll('#isitmaGunler .gun-chip.on'))
                .map(function(e){return parseInt(e.getAttribute('data-gun'),10);});
-  if(aktif && !saat){ bildir('Önce saat seç'); return; }
   if(aktif && gunler.length===0){ bildir('En az bir gün seç'); return; }
+  if(aktif && !(sabahAktif||aksamAktif)){ bildir('Sabah ya da akşamdan birini aç'); return; }
+  if(sabahAktif && !sabahSaat){ bildir('Sabah saati seç'); return; }
+  if(aksamAktif && !aksamSaat){ bildir('Akşam saati seç'); return; }
   var bekle=parseInt((document.getElementById('isitmaBekle').value||'8'),10);
   if(isNaN(bekle))bekle=8; bekle=Math.max(2,Math.min(40,bekle));
-  var govde={aktif:aktif,saat:saat,gunler:gunler,kilit_bekle:bekle};
+  var govde={aktif:aktif,gunler:gunler,kilit_bekle:bekle,
+             sabah_aktif:sabahAktif,sabah_saat:sabahSaat,
+             aksam_aktif:aksamAktif,aksam_saat:aksamSaat};
   if(_ynSifre) govde.sifre=_ynSifre;
   _ynPost('/api/isitma',govde).then(function(d){
-    if(d&&d.ok){ bildir(aktif?('Isıtma kuruldu · '+saat):'Zamanlı ısıtma kapatıldı'); }
+    if(d&&d.ok){
+      var _oz=[]; if(sabahAktif&&sabahSaat)_oz.push('🌅 '+sabahSaat); if(aksamAktif&&aksamSaat)_oz.push('🌆 '+aksamSaat);
+      bildir(aktif?('Isıtma kuruldu · '+(_oz.join('  '))):'Zamanlı ısıtma kapatıldı');
+    }
     else if(d&&d.hata==='sifre yanlis'){ _ynSifre=null; bildir('Yönetici girişi gerekli — Kullanıcılar sekmesinden gir'); }
     else { bildir((d&&d.hata)||'Kaydedilemedi'); }
   }).catch(function(){ bildir('Bağlantı hatası'); });
