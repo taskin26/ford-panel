@@ -108,6 +108,37 @@ public class MainActivity extends android.app.Activity implements BtKontrol.Dinl
         piDene(true);
         ana.postDelayed(() -> { if (!piCanli) piDene(true); }, 2500);
         ana.postDelayed(() -> { if (!piCanli) piDene(true); }, 6000);
+
+        // Uyku/uyanma + acilista otomatik one gelme icin kalici servis.
+        usttenCizmeIzniIste();   // arka plandan one gelebilmek icin (bir kerelik izin)
+        arkaHizmetiBaslat();
+    }
+
+    /** Teyp uyandiginda paneli one getiren kalici servisi baslatir. */
+    private void arkaHizmetiBaslat() {
+        try {
+            Intent i = new Intent(this, ArkaHizmet.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(i);
+            else startService(i);
+        } catch (Exception e) { /* yoksay */ }
+    }
+
+    /**
+     * "Diger uygulamalarin ustunde goster" (overlay) izni. Android 10+'ta arka
+     * plandan (uyanma aninda) aktivite baslatabilmek icin gerekli. Zaten verilmisse
+     * hicbir sey yapmaz; verilmemisse kullaniciyi bir kerelik ayar ekranina goturur.
+     */
+    private void usttenCizmeIzniIste() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                    && !android.provider.Settings.canDrawOverlays(this)) {
+                Intent i = new Intent(
+                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:" + getPackageName()));
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(i);
+            }
+        } catch (Exception e) { /* yoksay */ }
     }
 
     private void kurWebView() {

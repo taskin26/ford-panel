@@ -3,6 +3,7 @@ package com.ford.panel;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 
 /**
  * Teyp (araç başlığı) açıldığında FORD panelini otomatik başlatır.
@@ -25,6 +26,18 @@ public class BootReceiver extends BroadcastReceiver {
                 && !act.equals("com.htc.intent.action.QUICKBOOT_POWERON")) {
             return;
         }
+        // 1) Uyku/uyanma takibi için kalıcı servisi ayağa kaldır.
+        try {
+            Intent s = new Intent(context, ArkaHizmet.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(s);
+            } else {
+                context.startService(s);
+            }
+        } catch (Exception e) {
+            // yoksay
+        }
+        // 2) Soğuk açılışta paneli de doğrudan öne getir.
         try {
             Intent i = new Intent(context, MainActivity.class);
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
