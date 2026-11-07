@@ -1048,6 +1048,9 @@ input[type=range].sldr::-webkit-slider-thumb{-webkit-appearance:none;width:17px;
     <div class="dock-btn" id="dock-nav" onclick="openOverlay('nav')">
       <span class="db-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21.2s7-6.1 7-11.1a7 7 0 1 0-14 0c0 5 7 11.1 7 11.1z" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.6"/></svg></span><span class="db-lbl">Navigasyon</span>
     </div>
+    <div class="dock-btn" id="dock-telefon" onclick="telefonAc()">
+      <span class="db-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M6.6 3.4H9l1.4 4.2-2 1.4a12 12 0 0 0 4.9 4.9l1.4-2 4.2 1.4V21a1.4 1.4 0 0 1-1.5 1.4C10.3 21.8 2.2 13.7 2.2 5A1.4 1.4 0 0 1 3.6 3.4z" stroke-linejoin="round"/></svg></span><span class="db-lbl">Telefon</span>
+    </div>
     <div class="dock-btn" id="dock-settings" onclick="openOverlay('settings')">
       <span class="db-icon"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3"/><path d="M19.2 14.6a1.6 1.6 0 0 0 .3 1.8l.1.1a1.9 1.9 0 1 1-2.7 2.7l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5v.2a1.9 1.9 0 1 1-3.8 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a1.9 1.9 0 1 1-2.7-2.7l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1h-.2a1.9 1.9 0 1 1 0-3.8h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a1.9 1.9 0 1 1 2.7-2.7l.1.1a1.6 1.6 0 0 0 1.8.3h.1a1.6 1.6 0 0 0 1-1.5v-.2a1.9 1.9 0 1 1 3.8 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a1.9 1.9 0 1 1 2.7 2.7l-.1.1a1.6 1.6 0 0 0-.3 1.8v.1a1.6 1.6 0 0 0 1.5 1h.2a1.9 1.9 0 1 1 0 3.8h-.1a1.6 1.6 0 0 0-1.5 1z" stroke-linejoin="round"/></svg></span><span class="db-lbl">Ayarlar</span>
     </div>
@@ -1203,6 +1206,7 @@ input[type=range].sldr::-webkit-slider-thumb{-webkit-appearance:none;width:17px;
       <div class="sn-item" onclick="showSPanel('komutlar',this)"><span class="sn-icon"><svg viewBox="0 0 24 24" fill="none"><rect x="9" y="2.8" width="6" height="11" rx="3"/><path d="M5.6 11.4a6.4 6.4 0 0 0 12.8 0"/><path d="M12 17.8V21M8.6 21h6.8"/></svg></span><span class="sn-label">Komutlar</span></div>
       <div class="sn-sep"></div>
       <div class="sn-item" onclick="showSPanel('arac',this)"><span class="sn-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M3.4 14.6h17.2v3.2H3.4z" stroke-linejoin="round"/><path d="M5.2 14.6l2.1-5.2a2 2 0 0 1 1.9-1.3h5.6a2 2 0 0 1 1.9 1.3l2.1 5.2" stroke-linejoin="round"/><circle cx="7.2" cy="18" r="1.8"/><circle cx="16.8" cy="18" r="1.8"/></svg></span><span class="sn-label">Araç</span></div>
+      <div class="sn-item" id="sn-telefon" onclick="showSPanel('telefon',this)"><span class="sn-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M6.6 3.4H9l1.4 4.2-2 1.4a12 12 0 0 0 4.9 4.9l1.4-2 4.2 1.4V21a1.4 1.4 0 0 1-1.5 1.4C10.3 21.8 2.2 13.7 2.2 5A1.4 1.4 0 0 1 3.6 3.4z" stroke-linejoin="round"/></svg></span><span class="sn-label">Telefon</span></div>
       <div class="sn-sep"></div>
       <div class="sn-item" onclick="showSPanel('ekran',this)"><span class="sn-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3.2c-4.9 0-8.8 3.6-8.8 8.1 0 4.5 3.9 8.1 8.8 8.1 1.5 0 2.3-1 2.3-2 0-1.1-.9-1.6-.9-2.5 0-.9.7-1.6 1.7-1.6h1.6c2.3 0 4.1-1.8 4.1-4.1 0-3.3-3.8-6-8.8-6z" stroke-linejoin="round"/><circle cx="7.6" cy="11" r="1.1" fill="currentColor" stroke="none"/><circle cx="10.4" cy="7.6" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="7.8" r="1.1" fill="currentColor" stroke="none"/></svg></span><span class="sn-label">Ekran</span></div>
       <div class="sn-item" onclick="showSPanel('ag',this)"><span class="sn-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M2.6 8.6a14 14 0 0 1 18.8 0"/><path d="M5.6 12a9.6 9.6 0 0 1 12.8 0"/><path d="M8.6 15.4a5.2 5.2 0 0 1 6.8 0"/><circle cx="12" cy="19" r="1.3" fill="currentColor" stroke="none"/></svg></span><span class="sn-label">Ağ</span></div>
@@ -1221,6 +1225,29 @@ input[type=range].sldr::-webkit-slider-thumb{-webkit-appearance:none;width:17px;
         <div class="s-group">
           <div class="s-row"><div class="sr-l"><span class="sr-ic">🆔</span><div><div class="sr-lbl">RFID Kartı</div><div class="sr-desc" id="aktifRfidDesc">—</div></div></div><span class="badge" id="aktifRfidRozet">—</span></div>
           <div class="s-row"><div class="sr-l"><span class="sr-ic">👤</span><div><div class="sr-lbl">Profili Düzenle</div><div class="sr-desc" id="aktifAdDesc">—</div></div></div><button class="s-btn s-btn-p" onclick="profilAc(AYAR.aktifKullanici)">Düzenle</button></div>
+        </div>
+      </div>
+      <div class="s-panel" id="sp-telefon">
+        <div class="s-title">📞 Telefon Rehberi</div>
+        <div class="s-group">
+          <div class="s-row"><div class="sr-l"><span class="sr-ic">🎙️</span><div><div class="sr-lbl">Sesle arama</div><div class="sr-desc">"<b>Mehmet Taş'ı ara</b>" de — sistem rehberden bulup telefonu çaldırır. Aynı addan birkaç kişi varsa tam <b>ad + soyad</b> ister, yanlış kişiyi aramaz.</div></div></div></div>
+        </div>
+        <div class="s-title">Yeni Kişi</div>
+        <div class="s-group">
+          <div class="s-row"><div class="sr-l" style="flex:1;min-width:0"><span class="sr-ic">👤</span><input id="rehAd" class="s-inp" style="margin:0" placeholder="Ad Soyad (örn. Mehmet Taş)"></div></div>
+          <div class="s-row"><div class="sr-l" style="flex:1;min-width:0"><span class="sr-ic">📱</span><input id="rehNo" class="s-inp" type="tel" style="margin:0" placeholder="Telefon (örn. 0532 123 45 67)"></div><button class="s-btn s-btn-p" onclick="rehberEkle()">Ekle</button></div>
+        </div>
+        <div class="s-title">Rehberi İçe Aktar</div>
+        <div class="s-group">
+          <div class="s-row"><div class="sr-l"><span class="sr-ic">📥</span><div><div class="sr-lbl">Telefon rehberini toplu yükle</div><div class="sr-desc">Telefondan <b>.vcf</b> (kartvizit) olarak dışa aktar, buradan seç — hepsi bir kerede eklenir.</div></div></div><label class="s-btn" style="cursor:pointer;white-space:nowrap">Dosya Seç<input id="rehVcf" type="file" accept=".vcf,text/vcard" style="display:none" onchange="rehberVcfAktar(this)"></label></div>
+        </div>
+        <div class="s-title">Kayıtlı Kişiler <span class="badge" id="rehSayi">0</span></div>
+        <div class="s-group" id="rehListe"><div class="sr-desc" style="padding:14px;text-align:center">Henüz kişi yok.</div></div>
+        <div class="s-title">Arama Bağlantısı (MacroDroid)</div>
+        <div class="s-group">
+          <div class="s-row"><div class="sr-l"><span class="sr-ic">🔗</span><div><div class="sr-lbl">Telefonu çaldıran adres</div><div class="sr-desc">Telefonda MacroDroid makrosunu kurunca verdiği <b>"ara" webhook</b> adresini buraya yapıştır. Numarayı sistem kendisi ekler.</div></div></div></div>
+          <div class="s-row"><div class="sr-l" style="flex:1;min-width:0"><span class="sr-ic">📞</span><input id="telAraUrl" class="s-inp" style="margin:0" placeholder="https://trigger.macrodroid.com/..../ara"></div></div>
+          <div class="s-row"><div class="sr-l" style="flex:1;min-width:0"><span class="sr-ic">⛔</span><input id="telKapatUrl" class="s-inp" style="margin:0" placeholder="Kapatma adresi (isteğe bağlı)"></div><button class="s-btn s-btn-p" onclick="telAyarKaydet()">Kaydet</button></div>
         </div>
       </div>
       <div class="s-panel" id="sp-ses">
@@ -2071,6 +2098,7 @@ function showSPanel(id,el){
   if(id === 'arac' && typeof srYukle === 'function') srYukle();
   if(id === 'arac' && typeof kbYukle === 'function') kbYukle();
   if(id === 'arac' && typeof isitmaYukle === 'function') isitmaYukle();
+  if(id === 'telefon' && typeof rehberYukle === 'function') rehberYukle();
 }
 function showSubTab(btn,id){
   document.querySelectorAll('.sub-tab').forEach(b=>b.classList.remove('active'));
@@ -2740,6 +2768,101 @@ function isitmaKaydet(){
     else if(d&&d.hata==='sifre yanlis'){ _ynSifre=null; bildir('Yönetici girişi gerekli — Kullanıcılar sekmesinden gir'); }
     else { bildir((d&&d.hata)||'Kaydedilemedi'); }
   }).catch(function(){ bildir('Bağlantı hatası'); });
+}
+/* ══ TELEFON REHBERİ ══ */
+var _rehber=[];
+function telefonAc(){ openOverlay('settings'); var el=document.getElementById('sn-telefon'); showSPanel('telefon',el); }
+function _rehberNoTemiz(s){ return (s||'').replace(/[^0-9+]/g,''); }
+function rehberYukle(){
+  fetch('/api/rehber').then(function(r){return r.ok?r.json():null;}).then(function(d){
+    _rehber=(d&&d.kisiler)||[]; rehberCiz();
+  }).catch(function(){ _rehber=[]; rehberCiz(); });
+  telAyarYukle();
+}
+function telAyarYukle(){
+  fetch('/api/telefon_ayar').then(function(r){return r.ok?r.json():null;}).then(function(d){
+    var a=(d&&d.ayar)||{};
+    var u=document.getElementById('telAraUrl'); if(u)u.value=a.ara_url||'';
+    var k=document.getElementById('telKapatUrl'); if(k)k.value=a.kapat_url||'';
+  }).catch(function(){});
+}
+function telAyarKaydet(){
+  var govde={ara_url:(document.getElementById('telAraUrl').value||'').trim(),
+             kapat_url:(document.getElementById('telKapatUrl').value||'').trim()};
+  if(_ynSifre) govde.sifre=_ynSifre;
+  _ynPost('/api/telefon_ayar',govde).then(function(d){
+    if(d&&d.ok){ bildir('Arama bağlantısı kaydedildi'); }
+    else if(d&&d.hata==='sifre yanlis'){ _ynSifre=null; bildir('Yönetici girişi gerekli — Kullanıcılar sekmesinden gir'); }
+    else { bildir((d&&d.hata)||'Kaydedilemedi'); }
+  }).catch(function(){ bildir('Bağlantı hatası'); });
+}
+function rehberCiz(){
+  var L=document.getElementById('rehListe'); var S=document.getElementById('rehSayi');
+  if(S)S.textContent=_rehber.length;
+  if(!L)return;
+  if(!_rehber.length){ L.innerHTML='<div class="sr-desc" style="padding:14px;text-align:center">Henüz kişi yok.</div>'; return; }
+  var h='';
+  _rehber.slice().sort(function(a,b){return (a.ad||'').localeCompare(b.ad||'','tr');}).forEach(function(k){
+    var ad=(k.ad||'').replace(/</g,'&lt;'); var no=(k.numara||'').replace(/</g,'&lt;');
+    h+='<div class="s-row"><div class="sr-l"><span class="sr-ic">📇</span><div><div class="sr-lbl">'+ad+'</div><div class="sr-desc">'+no+'</div></div></div><button class="s-btn" onclick="rehberSil('+JSON.stringify(k.ad)+')">🗑️</button></div>';
+  });
+  L.innerHTML=h;
+}
+function rehberEkle(){
+  var ad=(document.getElementById('rehAd').value||'').trim().replace(/\s+/g,' ');
+  var no=_rehberNoTemiz(document.getElementById('rehNo').value);
+  if(!ad){ bildir('Ad soyad yaz'); return; }
+  if(ad.split(' ').length<2){ bildir('Ad ve soyad birlikte gir (örn. Mehmet Taş)'); return; }
+  if(no.length<7){ bildir('Geçerli bir numara gir'); return; }
+  var govde={ekle:[{ad:ad,numara:no}]};
+  if(_ynSifre) govde.sifre=_ynSifre;
+  _ynPost('/api/rehber',govde).then(function(d){
+    if(d&&d.ok){ document.getElementById('rehAd').value=''; document.getElementById('rehNo').value=''; _rehber=d.kisiler||_rehber; rehberCiz(); bildir('Eklendi: '+ad); }
+    else if(d&&d.hata==='sifre yanlis'){ _ynSifre=null; bildir('Yönetici girişi gerekli — Kullanıcılar sekmesinden gir'); }
+    else { bildir((d&&d.hata)||'Eklenemedi'); }
+  }).catch(function(){ bildir('Bağlantı hatası'); });
+}
+function rehberSil(ad){
+  if(!confirm(ad+' silinsin mi?')) return;
+  var govde={sil:[ad]};
+  if(_ynSifre) govde.sifre=_ynSifre;
+  _ynPost('/api/rehber',govde).then(function(d){
+    if(d&&d.ok){ _rehber=d.kisiler||_rehber; rehberCiz(); bildir('Silindi'); }
+    else if(d&&d.hata==='sifre yanlis'){ _ynSifre=null; bildir('Yönetici girişi gerekli'); }
+    else { bildir((d&&d.hata)||'Silinemedi'); }
+  }).catch(function(){ bildir('Bağlantı hatası'); });
+}
+function _vcfAyristir(txt){
+  var out=[]; var kartlar=(txt||'').split(/BEGIN:VCARD/i);
+  kartlar.forEach(function(c){
+    if(!/END:VCARD/i.test(c))return;
+    var ad=''; var no='';
+    var mFN=c.match(/[\r\n]FN[^:]*:(.+)/i);
+    if(mFN) ad=mFN[1].trim();
+    if(!ad){ var mN=c.match(/[\r\n]N[^:]*:(.+)/i); if(mN){ var p=mN[1].split(';'); ad=((p[1]||'')+' '+(p[0]||'')).trim(); } }
+    var mT=c.match(/[\r\n]TEL[^:]*:(.+)/i);
+    if(mT) no=mT[1].replace(/[^0-9+]/g,'');
+    ad=ad.replace(/\r/g,'').replace(/\s+/g,' ').trim();
+    if(ad && no.length>=7) out.push({ad:ad,numara:no});
+  });
+  return out;
+}
+function rehberVcfAktar(inp){
+  var f=inp.files&&inp.files[0]; if(!f)return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    var kisiler=_vcfAyristir(rd.result); inp.value='';
+    if(!kisiler.length){ bildir('vCard içinden kişi çıkmadı'); return; }
+    if(!confirm(kisiler.length+' kişi bulundu. Rehbere eklensin mi?')) return;
+    var govde={ekle:kisiler};
+    if(_ynSifre) govde.sifre=_ynSifre;
+    _ynPost('/api/rehber',govde).then(function(d){
+      if(d&&d.ok){ _rehber=d.kisiler||_rehber; rehberCiz(); bildir(kisiler.length+' kişi aktarıldı'); }
+      else if(d&&d.hata==='sifre yanlis'){ _ynSifre=null; bildir('Yönetici girişi gerekli'); }
+      else { bildir((d&&d.hata)||'Aktarılamadı'); }
+    }).catch(function(){ bildir('Bağlantı hatası'); });
+  };
+  rd.readAsText(f);
 }
 function ynYenile(_t){ /* FORD GUVENLIK BT */
   fetch('/api/yonetici/durum').then(function(r){return r.json();}).then(function(d){
