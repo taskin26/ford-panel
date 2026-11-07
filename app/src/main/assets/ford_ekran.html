@@ -2436,6 +2436,36 @@ async function durumCek(){
 }
 
 /* ---- komut gonder ---- */
+/* ===== FORD CIHAZ KIMLIK (sabit — MAC donmesine/ARP dusmesine karsi) =====
+   Tarayicida kalici bir kimlik uretir, HER istege 'X-Ford-Dev' basligi
+   olarak ekler. Backend bunu MAC yerine kullanir: telefon tek kayit kalir,
+   listede hep gorunur, yetkisi dusmez. localStorage silinmezse sabittir. */
+function _fordDev(){
+  try{
+    var t=localStorage.getItem('fordDev');
+    if(!t){ t=(Date.now().toString(36)+Math.random().toString(36).slice(2,12)).toUpperCase(); localStorage.setItem('fordDev',t); }
+    return t;
+  }catch(e){ return ''; }
+}
+(function(){
+  if(window._fordFetchYamali) return;
+  var _of=window.fetch;
+  if(typeof _of!=='function') return;
+  window._fordFetchYamali=1;
+  window.fetch=function(u,o){
+    o=o||{};
+    try{
+      var dev=_fordDev();
+      if(dev){
+        var h=new Headers((o&&o.headers)||{});
+        if(!h.has('X-Ford-Dev')) h.set('X-Ford-Dev',dev);
+        o.headers=h;
+      }
+    }catch(e){}
+    return _of.call(this,u,o);
+  };
+})();
+
 async function komutGonder(komut){
   try{
     const r = await fetch('/api/komut', {
@@ -2734,7 +2764,7 @@ function kulKilitUygula(){var ov=document.getElementById('kul-kilit');if(!ov)ret
    if(d.sifre_var&&!_ynSifre){ov.classList.add('ac');}else{ov.classList.remove('ac');}
  }).catch(function(){ov.classList.remove('ac');});}
 window.addEventListener('load',function(){ setTimeout(function(){
-   if(typeof showSPanel==='function'&&!showSPanel._kulW){var o=showSPanel;window.showSPanel=function(n,el){o(n,el);if(n==='kullanici')kulKilitUygula();};window.showSPanel._kulW=1;}
+   if(typeof showSPanel==='function'&&!showSPanel._kulW){var o=showSPanel;window.showSPanel=function(n,el){o(n,el);if(n==='kullanici'){kulKilitUygula();if(typeof kullaniciDurumYukle==='function')kullaniciDurumYukle();}};window.showSPanel._kulW=1;}
    kulKilitUygula();
  },1100); });
 /* FORD AYAR KILIT */
@@ -4866,13 +4896,38 @@ const VARSAYILAN_KULLANICILAR = [
 
 let _duzenlenen = null;   // modalda acik olan kullanici id'si
 
-function kullanicilar(){
-  if(!Array.isArray(AYAR.kullanicilar) || !AYAR.kullanicilar.length){
-    AYAR.kullanicilar = JSON.parse(JSON.stringify(VARSAYILAN_KULLANICILAR));
-    AYAR.aktifKullanici = 'k1';
-    ayarKaydet();
-  }
-  return AYAR.kullanicilar;
+/* A (4 Kasim): demo dizi oldu. Artik gercek veri /api/kullanici/birlesik'ten. */
+let _GERCEK_KULL = [];
+function kullanicilar(){ return _GERCEK_KULL; }
+function kullaniciDurumYukle(){
+  fetch('/api/kullanici/birlesik').then(function(r){return r.ok?r.json():null;}).then(function(d){
+    if(!d||!d.ok) return;
+    var liste=[];
+    (d.ses||[]).forEach(function(u){
+      liste.push({id:'ses:'+u.anahtar, ad:u.ad,
+        avatar:(u.rol==='sahip'?'👑':'🗣️'),
+        rol:(u.rol==='sahip'?'Sahip · Ses':'Ses · '+u.rol),
+        rfid:'', _tur:'ses', _aktif:!!u.aktif,
+        yetkiler:{kapi:1,cam:1,motor:1,bagaj:1,isik:1,muzik:1,ayar:(u.rol==='sahip'?1:0),sohbet:1}});
+    });
+    (d.telefonlar||[]).forEach(function(t){
+      var y=t.yetki||{};
+      liste.push({id:'tel:'+t.mac, ad:t.ad, avatar:'📱',
+        rol:'Telefon'+(t.rol?(' · '+t.rol):''), rfid:'', _tur:'telefon', _mac:t.mac,
+        yetkiler:{kapi:y.kapi?1:0,cam:y.cam?1:0,motor:y.motor?1:0,bagaj:y.bagaj?1:0,isik:y.isik?1:0,muzik:y.muzik?1:0,ayar:0,sohbet:1}});
+    });
+    _GERCEK_KULL=liste;
+    // Bu paneli acan telefonu isaretle ve varsayilan secili yap: kilit
+    // ekranindaki "Düzenle" dogrudan KENDI telefonunu acsin.
+    var benimId = d.benim_mac ? ('tel:'+d.benim_mac) : null;
+    var benimK = benimId ? liste.find(function(x){return x.id===benimId;}) : null;
+    if(benimK){ benimK._benim=true; benimK.rol = benimK.rol + ' · bu telefon'; }
+    var akt;
+    if(benimK){ akt=benimK.id; }
+    else { var a=liste.find(function(x){return x._aktif;}); akt=a?a.id:(liste[0]?liste[0].id:null); }
+    AYAR.aktifKullanici = akt;
+    kullanicilariCiz();
+  }).catch(function(){});
 }
 function kullaniciBul(id){ return kullanicilar().find(k=>k.id===id) || null; }
 
@@ -4936,14 +4991,7 @@ function aktifKullaniciYaz(){
 }
 
 function kullaniciEkle(){
-  const yeni = {
-    id: 'k' + Date.now().toString(36),
-    ad: 'Yeni Kullanıcı', avatar:'🙂', rol:'Kullanıcı', rfid:'',
-    yetkiler:{kapi:1,cam:1,motor:0,bagaj:1,isik:1,muzik:1,ayar:0,sohbet:1}
-  };
-  kullanicilar().push(yeni); ayarKaydet();
-  kullanicilariCiz();
-  profilAc(yeni.id);
+  bildir('Telefonlar FORD ağına bağlanınca listeye kendiliğinden düşer. Karttan (RC522) ekleme Faz 3’te gelecek.');
 }
 
 /* ---------- profil modali ---------- */
@@ -5016,36 +5064,54 @@ function rfidSil(){ rfidYaz(''); }
 
 function profilKaydet(){
   const k = kullaniciBul(_duzenlenen);
-  if(!k) return;
-  const ad = document.getElementById('pfAd').value.trim();
-  if(!ad){ alert('İsim boş olamaz.'); return; }
-  k.ad = ad.slice(0,18);
-  const av = document.querySelector('#pfAvatar .avatar-sec.sec');
-  if(av) k.avatar = av.textContent;
-  const rl = document.querySelector('#pfRol .secim.sec');
-  if(rl) k.rol = rl.dataset.v;
-  k.rfid = document.getElementById('pfRfidKod').dataset.kod || '';
-  k.yetkiler = {};
-  document.querySelectorAll('#pfYetki .toggle[data-y]').forEach(t=>{
-    k.yetkiler[t.dataset.y] = t.classList.contains('on') ? 1 : 0;
-  });
-  ayarKaydet();
-  kullanicilariCiz();
+  if(!k){ profilKapat(); return; }
+  // --- TELEFON: gercek backend (/api/yonetici/*) ---
+  if(k._tur === 'telefon'){
+    if(!_ynSifre){ alert('Önce Yönetici girişi yapın (kilit ekranındaki Giriş).'); return; }
+    const mac = k._mac;
+    const ad = (document.getElementById('pfAd').value||'').trim().slice(0,40);
+    const GRUP = ['kapi','cam','motor','bagaj','isik','muzik'];
+    const durum = {};
+    document.querySelectorAll('#pfYetki .toggle[data-y]').forEach(t=>{ durum[t.dataset.y] = t.classList.contains('on'); });
+    const isler = [];
+    if(ad && ad !== k.ad){ isler.push(_ynPost('/api/yonetici/ad',{sifre:_ynSifre,mac:mac,ad:ad})); }
+    GRUP.forEach(g=>{ isler.push(_ynPost('/api/yonetici/yetki',{sifre:_ynSifre,mac:mac,grup:g,deger:!!durum[g]})); });
+    Promise.all(isler).then(res=>{
+      const hata = res.find(d=>d && d.ok===false);
+      profilKapat();
+      if(hata){
+        if(hata.hata==='sifre yanlis'){ _ynSifre=null; bildir('Şifre yanlış — tekrar giriş yapın'); }
+        else bildir(hata.hata||'Bir izin kaydedilemedi');
+      } else {
+        bildir((ad||k.ad)+' güncellendi');
+      }
+      if(typeof kullaniciDurumYukle==='function') kullaniciDurumYukle();
+    }).catch(()=>{ profilKapat(); bildir('Bağlantı hatası'); });
+    return;
+  }
+  // --- SES (sesli kullanici): araçtan yönetilir; panelden düzenleme Faz 3 ---
+  bildir('Sesli kullanıcı araçtan yönetilir; panelden düzenleme Faz 3 (RC522) ile gelecek.');
   profilKapat();
-  bildir(k.ad + ' kaydedildi');
 }
 
 function profilSil(){
   const k = kullaniciBul(_duzenlenen);
-  if(!k) return;
-  if(kullanicilar().length <= 1){ alert('Son kullanıcı silinemez.'); return; }
-  if(!confirm(k.ad + ' silinsin mi?')) return;
-  AYAR.kullanicilar = kullanicilar().filter(x=>x.id !== k.id);
-  if(AYAR.aktifKullanici === k.id) AYAR.aktifKullanici = AYAR.kullanicilar[0].id;
-  ayarKaydet();
-  kullanicilariCiz();
+  if(!k){ profilKapat(); return; }
+  // --- TELEFON: gercek backend ---
+  if(k._tur === 'telefon'){
+    if(!_ynSifre){ alert('Önce Yönetici girişi yapın (kilit ekranındaki Giriş).'); return; }
+    if(!confirm((k.ad||'Telefon') + ' listeden silinsin mi?')) return;
+    _ynPost('/api/yonetici/sil',{sifre:_ynSifre,mac:k._mac}).then(d=>{
+      profilKapat();
+      if(d && d.ok){ bildir((k.ad||'Telefon')+' silindi'); }
+      else { if(d && d.hata==='sifre yanlis') _ynSifre=null; bildir((d&&d.hata)||'Silinemedi'); }
+      if(typeof kullaniciDurumYukle==='function') kullaniciDurumYukle();
+    }).catch(()=>{ profilKapat(); bildir('Bağlantı hatası'); });
+    return;
+  }
+  // --- SES: panelden silinmez ---
+  bildir('Sesli kullanıcı panelden silinemez; araçtan yönetilir.');
   profilKapat();
-  bildir(k.ad + ' silindi');
 }
 
 function profilKapat(){
