@@ -2924,7 +2924,54 @@ function ynListele(){
     kutu.appendChild(sd);
     document.getElementById('yn-bd').onclick=ynDegis;
     document.getElementById('yn-bc').onclick=function(){_ynSifre=null;ynYenile();};
+    try{ynSesListele();}catch(_e){}
   }).catch(function(){});
+}
+/* FORD SES YONETIM JS */
+function ynSesListele(){
+  var kutu=document.getElementById('yn-kutu'); if(!kutu||!_ynSifre) return;
+  _ynPost('/api/yonetici/ses_liste',{sifre:_ynSifre}).then(function(d){
+    if(!d||!d.ok) return;
+    var roller=d.roller||['sahip','tam','sinirli','misafir'];
+    var bas=document.createElement('div'); bas.className='s-title';
+    bas.style.marginTop='16px'; bas.textContent='Ses Kullanıcıları';
+    kutu.appendChild(bas);
+    (d.kullanicilar||[]).forEach(function(u){
+      var k=document.createElement('div'); k.className='yn-tel';
+      var row=document.createElement('div'); row.className='s-row';
+      row.innerHTML='<div class="sr-l"><div><div class="sr-lbl">'+_ynK(u.ad)+
+        ((u.anahtar===d.aktif)?' ✓':'')+'</div><div class="sr-desc">'+
+        _ynK(u.rol)+(u.ses_profili?' · ses':'')+'</div></div></div>';
+      var bSil=document.createElement('button');
+      bSil.className='s-btn s-btn-d'; bSil.textContent='Sil';
+      bSil.onclick=function(){ ynSesSil(u.anahtar,u.ad); };
+      row.appendChild(bSil); k.appendChild(row);
+      var iz=document.createElement('div'); iz.className='yn-izin';
+      roller.forEach(function(r){
+        var cip=document.createElement('span');
+        cip.className='yn-cip'+((u.rol===r)?' on':''); cip.textContent=r;
+        cip.onclick=function(){ ynSesRol(u.anahtar,r,cip,iz); };
+        iz.appendChild(cip);
+      });
+      k.appendChild(iz); kutu.appendChild(k);
+    });
+    if(!(d.kullanicilar||[]).length){
+      var e=document.createElement('div'); e.className='gc-aciklama';
+      e.textContent='Ses kullanıcısı yok.'; kutu.appendChild(e);
+    }
+  }).catch(function(){});
+}
+function ynSesRol(anahtar,rol,cip,iz){
+  _ynPost('/api/yonetici/ses_rol',{sifre:_ynSifre,anahtar:anahtar,rol:rol}).then(function(d){
+    if(d&&d.ok){ if(iz){iz.querySelectorAll('.yn-cip').forEach(function(c){c.classList.remove('on');});} if(cip)cip.classList.add('on'); }
+    else alert((d&&d.hata)||'olmadı');
+  });
+}
+function ynSesSil(anahtar,ad){
+  if(!confirm((ad||anahtar)+' ses kullanıcısı silinsin mi?')) return;
+  _ynPost('/api/yonetici/ses_sil',{sifre:_ynSifre,anahtar:anahtar}).then(function(d){
+    if(d&&d.ok){ ynListele(); } else alert((d&&d.hata)||'olmadı');
+  });
 }
 function ynAd(mac,eski){ var ad=prompt('İsim:',eski||''); if(ad===null)return; _ynPost('/api/yonetici/ad',{sifre:_ynSifre,mac:mac,ad:ad}).then(function(d){ if(d.ok)ynListele(); else alert(d.hata||'olmadı'); }); }
 function ynYetki(mac,grup,el){ _ynPost('/api/yonetici/yetki',{sifre:_ynSifre,mac:mac,grup:grup,deger:!el.classList.contains('on')}).then(function(d){ if(d.ok){el.classList.toggle('on');} else alert(d.hata||'olmadı'); }); }
