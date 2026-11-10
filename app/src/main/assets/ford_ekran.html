@@ -5598,8 +5598,9 @@ function motorEkranDuzelt(){
     if(c.ad === sonKomutAd && simdi - sonKomutZaman < 6000) return;
     sonKomutAd = c.ad; sonKomutZaman = simdi;
     // Panelin kendi fonksiyonu - butona basmakla AYNI
-    try{ if(typeof komutGonder==="function") komutGonder(c.ad); }catch(e){}
-    try{ panelSesDinle(); }catch(e){}   // arac cevabini telefonda da cal
+    // Once baseline oku -> komutu yolla -> arac cevabini telefonda cal
+    try{ panelSesYakala(function(){ if(typeof komutGonder==="function") komutGonder(c.ad); }); }
+    catch(e){ try{ komutGonder(c.ad); }catch(_e){} }
     toastGoster('🎤 <b>'+c.c+'</b><br><span style="color:#8fb0d0;font-size:13px">'+ham+'</span>');
     sesli(c.c);
     oturumBitis = simdi+OTURUM_MS;
@@ -5638,34 +5639,37 @@ function motorEkranDuzelt(){
     _psCaliyor = true;
     while(_psKuyruk.length){
       susKadar = Date.now() + 5000;
+      try{ toastGoster('🔊 cevap çalınıyor…'); }catch(e){}
       await _psCal('/api/ses_klip?id=' + _psKuyruk.shift());
     }
     _psCaliyor = false;
     susKadar = Date.now() + 1500;
   }
-  function panelSesDinle(){
-    // Once suanki tavani al; SADECE bundan SONRAKI klipleri cal (eskiyi degil)
+  // ONCE baseline'i oku, SONRA komutu/karsilamayi gonder, sonra yeni
+  // klipleri cal. Boylece arac cevabi ben baseline'i okumadan calinip
+  // "eski" sayilmaz (zamanlama yarisi cozulur).
+  function panelSesYakala(gonder){
     fetch('/api/panel_ses?sonra=999999999').then(function(r){return r.json();}).then(function(d){
       _psId = (d && d.son) || 0;
-      var bitis = Date.now() + 12000;     // komut sonrasi 12 sn dinle
+      try{ if(gonder) gonder(); }catch(e){}   // komut baseline'dan SONRA
+      var bitis = Date.now() + 12000;          // 12 sn boyunca yeni klip dinle
       (function tik(){
         fetch('/api/panel_ses?sonra=' + _psId).then(function(r){return r.json();}).then(function(d2){
           if(d2 && d2.yeni && d2.yeni.length){
             for(var i=0;i<d2.yeni.length;i++){ var id=d2.yeni[i]; _psKuyruk.push(id); if(id>_psId)_psId=id; }
             _psSira();
           }
-          if(Date.now() < bitis) setTimeout(tik, 450);
+          if(Date.now() < bitis) setTimeout(tik, 400);
         }).catch(function(){ if(Date.now()<bitis) setTimeout(tik, 700); });
       })();
-    }).catch(function(){});
+    }).catch(function(){ try{ if(gonder) gonder(); }catch(e){} });
   }
   function karsilaIste(){
     // "Merhaba Ford" deyince: Pi kisisel karsilamayi soylesin, telefonda cal
-    try{ panelSesDinle(); }catch(e){}
-    try{
+    panelSesYakala(function(){
       fetch('/api/karsila', {method:'POST',
         headers:{'Content-Type':'application/json'}, body:'{}'}).catch(function(){});
-    }catch(e){}
+    });
   }
 
   function isle(ham){
