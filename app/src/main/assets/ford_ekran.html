@@ -5599,6 +5599,7 @@ function motorEkranDuzelt(){
     sonKomutAd = c.ad; sonKomutZaman = simdi;
     // Panelin kendi fonksiyonu - butona basmakla AYNI
     try{ if(typeof komutGonder==="function") komutGonder(c.ad); }catch(e){}
+    try{ panelSesDinle(); }catch(e){}   // arac cevabini telefonda da cal
     toastGoster('🎤 <b>'+c.c+'</b><br><span style="color:#8fb0d0;font-size:13px">'+ham+'</span>');
     sesli(c.c);
     oturumBitis = simdi+OTURUM_MS;
@@ -5606,6 +5607,65 @@ function motorEkranDuzelt(){
     // mikrofona geri gelip komutu yeniden tetiklemesin diye 3.5 sn
     // dinlemeyi yok say.
     susKadar = simdi + 3500;
+  }
+
+  /* ---- UZAKTAN SESLI YANIT ----
+     Arac neyi caldiysa (hangi MP3 klibi) telefona da AYNISINI calar.
+     Boylece arabadan uzaktayken sesli cevabi elindeki telefondan duyarsin.
+     Mikrofon TANIMAYA dokunmaz; sadece cikan cevabi calar. */
+  var _psId = 0, _psKuyruk = [], _psCaliyor = false, _psAudio = null;
+  var _psBos = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAA=";
+  function _psUnlock(){            // ilk dokunusta ses kilidini ac (autoplay)
+    try{
+      if(!_psAudio) _psAudio = new Audio();
+      _psAudio.src = _psBos;
+      var p = _psAudio.play(); if(p&&p.catch) p.catch(function(){});
+    }catch(e){}
+  }
+  function _psCal(url){
+    return new Promise(function(res){
+      try{
+        if(!_psAudio) _psAudio = new Audio();
+        _psAudio.onended = res; _psAudio.onerror = res;
+        susKadar = Date.now() + 5000;     // calarken kendi sesini duymasin
+        _psAudio.src = url;
+        var p = _psAudio.play(); if(p&&p.catch) p.catch(function(){ res(); });
+      }catch(e){ res(); }
+    });
+  }
+  async function _psSira(){
+    if(_psCaliyor) return;
+    _psCaliyor = true;
+    while(_psKuyruk.length){
+      susKadar = Date.now() + 5000;
+      await _psCal('/api/ses_klip?id=' + _psKuyruk.shift());
+    }
+    _psCaliyor = false;
+    susKadar = Date.now() + 1500;
+  }
+  function panelSesDinle(){
+    // Once suanki tavani al; SADECE bundan SONRAKI klipleri cal (eskiyi degil)
+    fetch('/api/panel_ses?sonra=999999999').then(function(r){return r.json();}).then(function(d){
+      _psId = (d && d.son) || 0;
+      var bitis = Date.now() + 12000;     // komut sonrasi 12 sn dinle
+      (function tik(){
+        fetch('/api/panel_ses?sonra=' + _psId).then(function(r){return r.json();}).then(function(d2){
+          if(d2 && d2.yeni && d2.yeni.length){
+            for(var i=0;i<d2.yeni.length;i++){ var id=d2.yeni[i]; _psKuyruk.push(id); if(id>_psId)_psId=id; }
+            _psSira();
+          }
+          if(Date.now() < bitis) setTimeout(tik, 450);
+        }).catch(function(){ if(Date.now()<bitis) setTimeout(tik, 700); });
+      })();
+    }).catch(function(){});
+  }
+  function karsilaIste(){
+    // "Merhaba Ford" deyince: Pi kisisel karsilamayi soylesin, telefonda cal
+    try{ panelSesDinle(); }catch(e){}
+    try{
+      fetch('/api/karsila', {method:'POST',
+        headers:{'Content-Type':'application/json'}, body:'{}'}).catch(function(){});
+    }catch(e){}
   }
 
   function isle(ham){
@@ -5624,6 +5684,7 @@ function motorEkranDuzelt(){
       if(c2){ komutYap(c2, ham); }
       else{
         toastGoster('🎤 <b>Buyur kaptan</b>');
+        karsilaIste();          // Pi kisisel karsilamayi soylesin, telefonda cal
         if(yeni) sesli("Buyur kaptan");
       }
       return;
@@ -5657,6 +5718,7 @@ function motorEkranDuzelt(){
     dinliyor=true; fabDurum();
     try{ rec.start(); }catch(e){}
     sesli(" ");  // ilk dokunusta TTS kilidini ac
+    try{ _psUnlock(); }catch(e){}   // uzaktan sesli yanit icin ses kilidini ac
     try{ localStorage.setItem("fordSesli","1"); }catch(e){}
     toastGoster('🎤 Dinleniyor — "Merhaba Ford" de');
   }
