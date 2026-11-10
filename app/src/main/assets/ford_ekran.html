@@ -1297,6 +1297,14 @@ input[type=range].sldr::-webkit-slider-thumb{-webkit-appearance:none;width:17px;
           <button class="sub-tab" onclick="showSubTab(this,'st-role')">⚡ Röle Testi</button>
         </div>
         <div class="sub-sec active" id="st-karsılama">
+          <div class="s-title">🙋 Kişisel Karşılama</div>
+          <div class="gc-aciklama">Bu telefona bir isim yaz; araç seni <b>o isimle</b> karşılasın. Her telefon kendi ismini alır — uygulamayı başka telefona kurup oradan da ayrı bir isim atayabilirsin.</div>
+          <div class="s-group">
+            <div class="s-row"><div class="sr-l"><span class="sr-ic">🙋</span><div><div class="sr-lbl">Bu telefonun ismi</div><div class="sr-desc" id="hitapBuDesc">—</div></div></div></div>
+            <div class="s-row" style="gap:10px"><input type="text" id="hitapAd" class="s-sel" placeholder="örn. Kaptan" maxlength="24" style="flex:1;min-width:120px" oninput="this._dokunuldu=true" onkeydown="if(event.key==='Enter'){event.preventDefault();hitapKaydet();}"><button class="s-btn s-btn-p" onclick="hitapKaydet()">Kaydet</button></div>
+            <div class="rl-sonuc" id="hitapSonuc"></div>
+          </div>
+          <div id="hitapListe"></div>
           <div class="s-group">
             <div class="s-row"><div class="sr-l"><span class="sr-ic">✨</span><div><div class="sr-lbl">Karşılama Modu</div><div class="sr-desc">RFID okununca aktif</div></div></div><div class="toggle on" data-key="t_karsilama_modu" onclick="toggleBas(this)"><div class="t-track"></div><div class="t-thumb"></div></div></div>
             <div class="s-row"><div class="sr-l"><span class="sr-ic">🔊</span><div><div class="sr-lbl">Karşılama Sesi</div><div class="sr-desc">"Hoş geldin, [isim]"</div></div></div><div class="toggle on" data-key="t_karsilama_sesi" onclick="toggleBas(this)"><div class="t-track"></div><div class="t-thumb"></div></div></div>
@@ -2100,8 +2108,60 @@ function showSPanel(id,el){
   if(id === 'arac' && typeof srYukle === 'function') srYukle();
   if(id === 'arac' && typeof kbYukle === 'function') kbYukle();
   if(id === 'arac' && typeof isitmaYukle === 'function') isitmaYukle();
+  if(id === 'arac' && typeof hitapListele === 'function') hitapListele(); /* FORD HITAP */
   if(id === 'telefon' && typeof rehberYukle === 'function') rehberYukle();
 }
+/* ══════════ KİŞİSEL KARŞILAMA (çoklu telefon) ══════════
+   Her telefon X-Ford-Dev başlığıyla tanınır (fetch yaması otomatik
+   ekler). İsim yaz-kaydet; araç o telefonu kendi ismiyle karşılar. */
+function _hkac(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function hitapSonuc(tur,metin){
+  var s=document.getElementById('hitapSonuc'); if(!s) return;
+  s.className='rl-sonuc goster';
+  s.innerHTML='<div class="rs-kutu '+tur+'">'+_hkac(metin)+'</div>';
+}
+function hitapListele(){
+  fetch('/api/hitap_durum').then(function(r){return r.json();}).then(function(d){
+    if(!d||!d.ok) return;
+    var kl=d.kullanicilar||[], buAd='';
+    kl.forEach(function(k){ if(k.bu_mu) buAd=k.ad; });
+    var bd=document.getElementById('hitapBuDesc');
+    if(bd) bd.textContent = buAd ? ('Şu an: '+buAd) : 'Henüz atanmadı';
+    var inp=document.getElementById('hitapAd');
+    if(inp && !inp._dokunuldu && buAd) inp.value=buAd;
+    var liste=document.getElementById('hitapListe'); if(!liste) return;
+    if(!kl.length){ liste.innerHTML=''; return; }
+    var h='<div class="s-title" style="margin-top:14px;font-size:13px">Kayıtlı telefonlar</div><div class="s-group">';
+    kl.forEach(function(k){
+      var rozet = k.bu_mu ? ' <span class="badge blue">bu telefon</span>'
+                          : (k.cihaz ? '' : ' <span class="badge warn">bağlı değil</span>');
+      var sil = (kl.length>1) ? '<button class="s-btn" onclick="hitapSil(\''+_hkac(k.anahtar)+'\',\''+_hkac(k.ad)+'\')">Sil</button>' : '';
+      h+='<div class="s-row"><div class="sr-l"><span class="sr-ic">📱</span><div><div class="sr-lbl">'+_hkac(k.ad)+rozet+'</div><div class="sr-desc">'+_hkac(k.rol||'')+'</div></div></div>'+sil+'</div>';
+    });
+    liste.innerHTML=h+'</div>';
+  }).catch(function(){});
+}
+function hitapKaydet(){
+  var inp=document.getElementById('hitapAd'); if(!inp) return;
+  var ad=(inp.value||'').trim();
+  if(ad.length<2){ hitapSonuc('rs-kotu','En az 2 harf yaz.'); return; }
+  hitapSonuc('rs-red','Kaydediliyor, ses hazırlanıyor…');
+  fetch('/api/hitap_ayarla',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ad:ad})})
+    .then(function(r){return r.json();}).then(function(d){
+      if(d&&d.ok){ hitapSonuc('rs-iyi','✓ "'+ad+'" olarak kaydedildi. Birkaç saniye içinde hazır.');
+        inp._dokunuldu=false; setTimeout(hitapListele,1600); setTimeout(hitapListele,4500); }
+      else { hitapSonuc('rs-kotu',(d&&d.hata)||'Olmadı.'); }
+    }).catch(function(){ hitapSonuc('rs-kotu','Bağlantı yok.'); });
+}
+function hitapSil(anahtar,ad){
+  if(!confirm('"'+(ad||anahtar)+'" karşılama kaydı silinsin mi?')) return;
+  fetch('/api/hitap_sil',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({anahtar:anahtar})})
+    .then(function(r){return r.json();}).then(function(d){
+      if(d&&d.ok){ var i=document.getElementById('hitapAd'); if(i)i._dokunuldu=false; hitapListele(); }
+      else alert((d&&d.hata)||'Olmadı.');
+    }).catch(function(){});
+}
+
 function showSubTab(btn,id){
   document.querySelectorAll('.sub-tab').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.sub-sec').forEach(s=>s.classList.remove('active'));
@@ -2110,6 +2170,7 @@ function showSubTab(btn,id){
   /* Role sekmesi acilinca kanallari Pi'den cek */
   if(id === 'st-role') roleListeYukle();
   if(id === 'st-guvenlik' && typeof ynYenile==='function') ynYenile(); /* FORD GUVENLIK BT */
+  if(id === 'st-karsılama' && typeof hitapListele==='function') hitapListele(); /* FORD HITAP */
 }
 function toggleCtrl(el,off,on){el.classList.toggle('on');el.querySelector('.cb-sub').textContent=el.classList.contains('on')?on:off}
 
