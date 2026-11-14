@@ -1257,6 +1257,7 @@ input[type=range].sldr::-webkit-slider-thumb{-webkit-appearance:none;width:17px;
           <div class="s-row"><div class="sr-l"><span class="sr-ic">🎵</span><div><div class="sr-lbl">Müzik Sesi</div><div class="sr-desc">Başlangıç seviyesi</div></div></div><div class="sldr-wrap"><input type="range" class="sldr" data-key="s_muzik_sesi" min="0" max="100" value="55" oninput="sldrDegis(this)"><span class="sldr-v">55%</span></div></div>
           <div class="s-row"><div class="sr-l"><span class="sr-ic">🎙️</span><div><div class="sr-lbl">Mikrofon Hassasiyeti</div><div class="sr-desc">Yazılım kazancı — mesafe kazandırmaz, gürültüyü de büyütür</div></div></div><div class="sldr-wrap"><input type="range" class="sldr" data-key="s_mikrofon_hassasiyeti" min="0" max="100" value="65" oninput="sldrDegis(this)"><span class="sldr-v">65%</span></div></div>
           <div class="s-row mik-satir"><div class="sr-l"><span class="sr-ic">📊</span><div><div class="sr-lbl">Canlı Seviye</div><div class="sr-desc" id="mikDurum">Konuş, çubuk oynasın</div></div></div><div class="mik-olcer"><div class="mik-iz"><div class="mik-dolu" id="mikDolu"></div><div class="mik-hedef"></div></div><span class="mik-deg" id="mikDeg">0</span></div></div>
+          <div class="s-row"><div class="sr-l"><span class="sr-ic">🌊</span><div><div class="sr-lbl">Gürültü Süzme <span class="badge blue" id="gzHz">130 Hz</span></div><div class="sr-desc">Motor/yol uğultusunu keser. <b>−</b> az keser (sesi korur), <b>+</b> çok keser (gürültüyü azaltır).</div></div></div><div style="display:flex;align-items:center;gap:8px"><button class="s-btn" onclick="gzAyar(-10)" style="min-width:46px;font-size:22px;line-height:1">−</button><button class="s-btn" onclick="gzAyar(10)" style="min-width:46px;font-size:22px;line-height:1">+</button><div class="toggle on" id="gzToggle" onclick="gzAcKapa()"><div class="t-track"></div><div class="t-thumb"></div></div></div></div>
         </div>
         <div class="s-title" style="margin-top:18px">Ses Kartları</div>
         <div class="s-group">
@@ -2091,6 +2092,26 @@ function openOverlay(n){
 document.querySelectorAll('.app-overlay').forEach(o=>o.classList.remove('open'));document.getElementById('overlay-'+n).classList.add('open');document.querySelectorAll('.dock-btn').forEach(b=>b.classList.remove('active'));const db=document.getElementById('dock-'+n);if(db)db.classList.add('active')}
 function closeOverlay(n){document.getElementById('overlay-'+n).classList.remove('open');document.querySelectorAll('.dock-btn').forEach(b=>b.classList.remove('active'));document.getElementById('dock-home').classList.add('active')}
 function goHome(){document.querySelectorAll('.app-overlay').forEach(o=>o.classList.remove('open'));document.querySelectorAll('.dock-btn').forEach(b=>b.classList.remove('active'));document.getElementById('dock-home').classList.add('active')}
+/* ══════════ GÜRÜLTÜ SÜZME (panelden canlı ayar) ══════════ */
+function _gzCiz(d){
+  if(!d||!d.ok) return;
+  window._gzFc=d.fc; window._gzAcik=d.acik;
+  var hz=document.getElementById('gzHz'); if(hz) hz.textContent=d.fc+' Hz';
+  var tg=document.getElementById('gzToggle'); if(tg) tg.className='toggle'+(d.acik?' on':'');
+}
+function gzYenile(){
+  fetch('/api/gurultu').then(function(r){return r.json();}).then(_gzCiz).catch(function(){});
+}
+function gzGonder(obj){
+  fetch('/api/gurultu',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(obj)})
+    .then(function(r){return r.json();}).then(_gzCiz).catch(function(){});
+}
+function gzAyar(delta){
+  var cur=(typeof window._gzFc==='number')?window._gzFc:130;
+  gzGonder({fc:cur+delta});
+}
+function gzAcKapa(){ gzGonder({acik: !(window._gzAcik)}); }
+
 function showSPanel(id,el){
   document.querySelectorAll('.s-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('sp-'+id).classList.add('active');
@@ -2103,13 +2124,14 @@ function showSPanel(id,el){
   }
   if(id === 'ag' && typeof agBilgiYukle === 'function') agBilgiYukle();
   if(id === 'ses' && typeof skYukle === 'function') skYukle();
+  if(id === 'ses' && typeof gzYenile === 'function') gzYenile(); /* FORD GURULTU */
   /* Arac paneli acilinca ESP32 yazma durumunu goster */
   if(id === 'arac' && typeof eySor === 'function') eySor();
   if(id === 'arac' && typeof srYukle === 'function') srYukle();
   if(id === 'arac' && typeof kbYukle === 'function') kbYukle();
   if(id === 'arac' && typeof isitmaYukle === 'function') isitmaYukle();
   if(id === 'arac' && typeof hitapListele === 'function') hitapListele(); /* FORD HITAP */
-  if(id === 'telefon' && typeof rehberYukle === 'function') rehberYukle();
+  /* BT koruma: rehber otomatik yuklenmiyor - BT SPP buyuk yanit baglantiyi kopartiyor */
 }
 /* ══════════ KİŞİSEL KARŞILAMA (çoklu telefon) ══════════
    Her telefon X-Ford-Dev başlığıyla tanınır (fetch yaması otomatik
@@ -2125,6 +2147,7 @@ function hitapListele(){
     if(!d||!d.ok) return;
     var kl=d.kullanicilar||[], buAd='';
     kl.forEach(function(k){ if(k.bu_mu) buAd=k.ad; });
+    try{ if(buAd) window._aktifAd=buAd; }catch(e){}
     var bd=document.getElementById('hitapBuDesc');
     if(bd) bd.textContent = buAd ? ('Şu an: '+buAd) : 'Henüz atanmadı';
     var inp=document.getElementById('hitapAd');
@@ -2145,13 +2168,38 @@ function hitapKaydet(){
   var inp=document.getElementById('hitapAd'); if(!inp) return;
   var ad=(inp.value||'').trim();
   if(ad.length<2){ hitapSonuc('rs-kotu','En az 2 harf yaz.'); return; }
-  hitapSonuc('rs-red','Kaydediliyor, ses hazırlanıyor…');
+  hitapSonuc('rs-red','Kaydediliyor…');
   fetch('/api/hitap_ayarla',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ad:ad})})
     .then(function(r){return r.json();}).then(function(d){
-      if(d&&d.ok){ hitapSonuc('rs-iyi','✓ "'+ad+'" olarak kaydedildi. Birkaç saniye içinde hazır.');
-        inp._dokunuldu=false; setTimeout(hitapListele,1600); setTimeout(hitapListele,4500); }
+      if(d&&d.ok){ inp._dokunuldu=false; try{window._aktifAd=ad;}catch(e){}
+        setTimeout(function(){ hitapHazirBekle(ad); }, 900); }
       else { hitapSonuc('rs-kotu',(d&&d.hata)||'Olmadı.'); }
     }).catch(function(){ hitapSonuc('rs-kotu','Bağlantı yok.'); });
+}
+/* Kaydet'ten sonra kliplerin uretimini canli izler: %0 -> %100 */
+function hitapHazirBekle(ad){
+  var s=document.getElementById('hitapSonuc'); if(!s) return;
+  var deneme=0, cubukVar=false;
+  function bitir(mesaj,tur){ if(!s)return; s.className='rl-sonuc goster';
+    s.innerHTML='<div class="rs-kutu '+(tur||'rs-iyi')+'">'+mesaj+'</div>'; hitapListele(); }
+  (function tik(){
+    deneme++;
+    fetch('/api/hitap_hazir').then(function(r){ if(!r.ok) throw 0; return r.json(); }).then(function(d){
+      if(d&&d.ok&&d.bitti){ bitir('✓ Hazır! Artık "'+_hkac(ad)+'" diye sesleniyor.'); return; }
+      cubukVar=true;
+      var yz=(d&&typeof d.yuzde==='number')?d.yuzde:0;
+      s.className='rl-sonuc goster';
+      s.innerHTML='<div class="rs-kutu rs-red">"'+_hkac(ad)+'" sesi hazırlanıyor… %'+yz+
+        '<div style="height:8px;border-radius:5px;background:rgba(255,255,255,.14);margin-top:8px;overflow:hidden">'+
+        '<div style="height:100%;width:'+yz+'%;background:#4aa3ff;transition:width .35s"></div></div></div>';
+      if(deneme<45) setTimeout(tik,1200);
+      else bitir('✓ "'+_hkac(ad)+'" kaydedildi.');
+    }).catch(function(){
+      /* uc yok (eski backend) ya da ag hatasi -> donma, basit mesaja dus */
+      if(!cubukVar && deneme>=2){ bitir('✓ "'+_hkac(ad)+'" kaydedildi. Birkaç saniye içinde hazır olur.'); return; }
+      if(deneme<45) setTimeout(tik,1400); else bitir('✓ "'+_hkac(ad)+'" kaydedildi.');
+    });
+  })();
 }
 function hitapSil(anahtar,ad){
   if(!confirm('"'+(ad||anahtar)+'" karşılama kaydı silinsin mi?')) return;
@@ -5748,9 +5796,9 @@ function motorEkranDuzelt(){
       var c2 = komutBul(m);
       if(c2){ komutYap(c2, ham); }
       else{
-        toastGoster('🎤 <b>Buyur kaptan</b>');
-        karsilaIste();          // Pi kisisel karsilamayi soylesin, telefonda cal
-        if(yeni) sesli("Buyur kaptan");
+        toastGoster('🎤 <b>Buyur'+((window._aktifAd)?(' '+window._aktifAd):'')+'</b>');
+        karsilaIste();          // gercek kisisel karsilamayi Pi soyler/calar (dogru isim)
+        /* tarayici TTS'i kaldirildi: sabit metin yerine Pi'nin gercek kisisel karsilamasi calar */
       }
       return;
     }
