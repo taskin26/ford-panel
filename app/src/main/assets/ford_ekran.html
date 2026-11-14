@@ -1232,6 +1232,10 @@ input[type=range].sldr::-webkit-slider-thumb{-webkit-appearance:none;width:17px;
         <div class="s-group">
           <div class="s-row"><div class="sr-l"><span class="sr-ic">🎙️</span><div><div class="sr-lbl">Sesle arama</div><div class="sr-desc">"<b>Mehmet Taş'ı ara</b>" de — sistem rehberden bulup telefonu çaldırır. Aynı addan birkaç kişi varsa tam <b>ad + soyad</b> ister, yanlış kişiyi aramaz.</div></div></div></div>
         </div>
+        <div class="s-title">📱 Telefon Seçimi</div>
+        <div class="s-group">          <div class="s-row"><div class="sr-l"><span class="sr-ic">📲</span><div><div class="sr-lbl">Aktif Telefon</div><div class="sr-desc">Sesli arama bu rehberden arar</div></div></div><select class="s-sel" id="rehTelSec" onchange="rehTelDegistir(this.value)" onfocus="if(!this._yk){this._yk=true;rehTelYukle();}" onclick="if(!this._yk){this._yk=true;rehTelYukle();}"><option value="">Dokunarak yükle</option></select></div>          <div class="s-row"><div class="sr-l" style="flex:1;min-width:0"><span class="sr-ic">➕</span><input id="rehYeniTelAd" class="s-inp" style="margin:0" placeholder="Yeni telefon adı (örn. Kardeş)"></div><button class="s-btn s-btn-p" onclick="rehYeniTelEkle()">Ekle</button></div>
+          <div class="rl-sonuc" id="rehTelSonuc"></div>
+        </div>
         <div class="s-title">Yeni Kişi</div>
         <div class="s-group">
           <div class="s-row"><div class="sr-l" style="flex:1;min-width:0"><span class="sr-ic">👤</span><input id="rehAd" class="s-inp" style="margin:0" placeholder="Ad Soyad (örn. Mehmet Taş)"></div></div>
@@ -5852,5 +5856,54 @@ function motorEkranDuzelt(){
     }
   }catch(e){}
 })();
+
+/* == COKLU TELEFON == */ // COKLU_REHBER_UI
+async function rehTelYukle(){
+  try{
+    var r=await fetch('/api/rehber/telefonlar');
+    var d=await r.json();
+    if(!d.ok)return;
+    var sel=document.getElementById('rehTelSec');
+    if(!sel)return;
+    sel.innerHTML='';
+    d.telefonlar.forEach(function(t){
+      var o=document.createElement('option');
+      o.value=t.dosya;
+      o.textContent=t.etiket+' ('+t.sayi+' kişi)';
+      if(t.aktif)o.selected=true;
+      sel.appendChild(o);
+    });
+  }catch(e){console.error('rehTelYukle',e);}
+}
+async function rehTelDegistir(dosya){
+  var s=document.getElementById('rehTelSonuc');
+  try{
+    var r=await fetch('/api/rehber/sec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dosya:dosya})});
+    var d=await r.json();
+    if(d.ok){
+      s.textContent='✅ Aktif: '+dosya;s.style.color='#4f4';
+      if(typeof rehberYukle==='function')rehberYukle();
+    }else{s.textContent='❌ '+d.hata;s.style.color='#f44';}
+  }catch(e){s.textContent='❌ Bağlantı hatası';s.style.color='#f44';}
+}
+async function rehYeniTelEkle(){
+  var inp=document.getElementById('rehYeniTelAd');
+  var s=document.getElementById('rehTelSonuc');
+  var ad=(inp.value||'').trim();
+  if(!ad){s.textContent='⚠️ Telefon adı gir';s.style.color='#fa0';return;}
+  ad=ad.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+  if(!ad){s.textContent='⚠️ Geçerli bir ad gir';s.style.color='#fa0';return;}
+  var dosya='rehber_'+ad+'.json';
+  try{
+    var r=await fetch('/api/rehber/ekle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dosya:dosya})});
+    var d=await r.json();
+    if(d.ok){
+      s.textContent='✅ '+dosya+' oluşturuldu';s.style.color='#4f4';
+      inp.value='';rehTelYukle();
+      setTimeout(function(){rehTelDegistir(dosya);},300);
+    }else{s.textContent='❌ '+d.hata;s.style.color='#f44';}
+  }catch(e){s.textContent='❌ Bağlantı hatası';s.style.color='#f44';}
+}
+
 </script>
 </body></html>
